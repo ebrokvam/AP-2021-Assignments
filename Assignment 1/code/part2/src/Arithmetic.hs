@@ -103,9 +103,11 @@ evalErr (Sum var from to body) r =
   do
   a <- evalErr from r
   b <- evalErr to r
-  if a > b
-    then return 0 --TODO: WHY CANTS I RETURN EOTHER??
-    else Right (sum [evalFull body (extendEnv var x r) | x <- [a..b]])
+  if a > b then return 0 else
+    do 
+      aa <- evalErr body (extendEnv var a r)
+      bb <- evalErr(Sum var (Add (Cst a) (Cst 1)) (Cst b) body) r
+      return (aa + bb)
   
 
 
