@@ -76,9 +76,6 @@ beause we know that in this specific case because each step is only one
 evalFull :: Exp -> Env -> Integer
 evalFull (Cst e) _ = e
 evalFull (Var v) r = fromMaybe (error "unbound variable") (r v)
-    -- case r v of 
-    --     Nothing -> error "unbound variable"
-    --     Just x -> x
 evalFull (Add e1 e2) r = evalFull e1 r + evalFull e2 r
 evalFull (Sub e1 e2) r = evalFull e1 r - evalFull e2 r 
 evalFull (Mul e1 e2) r = evalFull e1 r * evalFull e2 r 
@@ -180,16 +177,17 @@ showCompact e = case e of
 -- showCompact :: Exp -> Bool -> String
 -- showCompact e b = case e of
 --   (Cst n) -> show n 
---   (Add e1 e2) -> showCompact e1 b ++ "+" ++ needParenthese e2 b ++ showCompact e2 True
+--   (Add e1 e2) -> needParenthese e1 b ++ showCompact e1 b ++ "+" ++  showCompact e2 True
 --   (Sub e1 e2) -> showCompact e1 b ++ "-" ++ showCompact e2 b
 --   (Mul e1 e2) -> showCompact e1 b ++ "*" ++ showCompact e2 b 
 --   (Div e1 e2) -> showCompact e1 b ++ "`div`" ++ showCompact e2 b
 --   (Pow e1 e2) -> showCompact e1 b ++ "^" ++ showCompact e2 b
 --   _ -> error "Not allowed expression"
 
--- needParenthese :: Exp -> Bool -> String
--- needParenthese (Cst _) False = ""
--- needParenthese e b = if b then "(" ++ needParenthese e b ++ ")" else needParenthese e b
+
+needParenthese :: Exp -> Bool -> String
+needParenthese (Cst _) False = ""
+needParenthese e b = if b then "(" ++ needParenthese e b ++ ")" else needParenthese e b
 
 
 {-
@@ -199,56 +197,105 @@ hence why we have re-used it in evalEager
 evalEager :: Exp -> Env -> Either ArithError Integer
 evalEager (Cst e) _ = return e
 evalEager (Var v) r = 
-   case r v of
+  case r v of
     Nothing -> Left (EBadVar v) 
     Just x -> Right x
 evalEager (Add e1 e2) r = 
-    do 
-    a <- evalEager e1 r
-    b <- evalEager e2 r 
-    return (a + b)
+  do 
+  a <- evalEager e1 r
+  b <- evalEager e2 r 
+  return (a + b)
 evalEager (Sub e1 e2) r = 
-    do 
-    a <- evalEager e1 r
-    b <- evalEager e2 r 
-    return (a - b)
+  do 
+  a <- evalEager e1 r
+  b <- evalEager e2 r 
+  return (a - b)
 evalEager (Mul e1 e2) r = 
-    do 
-    a <- evalEager e1 r
-    b <- evalEager e2 r 
-    return (a * b)
+  do 
+  a <- evalEager e1 r
+  b <- evalEager e2 r 
+  return (a * b)
 evalEager (Div e1 e2) r = 
-    do 
-    a <- evalEager e1 r
-    b <- evalEager e2 r 
-    case b of 
-        0 -> Left EDivZero
-        c ->  return (a `div` c)
+  do 
+  a <- evalEager e1 r
+  b <- evalEager e2 r 
+  case b of 
+    0 -> Left EDivZero
+    c ->  return (a `div` c)
 evalEager (Pow e1 e2) r = 
-    do 
-    a <- evalEager e1 r
-    b <- evalEager e2 r 
-    if b < 0 then Left ENegPower else return (a ^ b)
+  do 
+  a <- evalEager e1 r
+  b <- evalEager e2 r 
+  if b < 0 then Left ENegPower else return (a ^ b)
 evalEager (If e1 e2 e3) r = 
-    do 
-    a <- evalEager e1 r
-    if a /= 0 then evalEager e2 r else evalEager e3 r
+  do 
+  a <- evalEager e1 r
+  if a /= 0 then evalEager e2 r else evalEager e3 r
 evalEager (Let v e1 e2) r = 
-    do
-    a <- evalEager e1 r 
-    evalEager e2 (extendEnv v a r)
+  do
+  a <- evalEager e1 r 
+  evalEager e2 (extendEnv v a r)
 evalEager (Sum v e1 e2 e3) r = 
+  do 
+  a <- evalEager e1 r 
+  b <- evalEager e2 r 
+  if a > b then return 0 else 
     do 
-    a <- evalEager e1 r 
-    b <- evalEager e2 r 
-    if a > b then return 0 else 
-        do 
-        aa <- evalEager e3 (extendEnv v a r)
-        bb <- evalEager(Sum v (Add (Cst a) (Cst 1)) (Cst b) e3) r
-        return (aa + bb)
+    aa <- evalEager e3 (extendEnv v a r)
+    bb <- evalEager(Sum v (Add (Cst a) (Cst 1)) (Cst b) e3) r
+    return (aa + bb)
 
 
 
-evalLazy :: Exp -> Env -> Either ArithError Integer
-evalLazy = undefined
--- evalLazy (Let v e1 e2) r = 
+{-
+Our current evalFull already implements eager evaluation 
+hence why we have re-used it in evalLazy with the stylishness 
+of evalErr
+-}
+evalLazy:: Exp -> Env -> Either ArithError Integer
+evalLazy (Cst e) _ = return e
+evalLazy (Var v) r = 
+  case r v of
+    Nothing -> Left (EBadVar v) 
+    Just x -> Right x
+evalLazy (Add e1 e2) r = 
+  do 
+  a <- evalLazy e1 r
+  b <- evalLazy e2 r 
+  return (a + b)
+evalLazy (Sub e1 e2) r = 
+  do 
+  a <- evalLazy e1 r
+  b <- evalLazy e2 r 
+  return (a - b)
+evalLazy (Mul e1 e2) r = 
+  do 
+  a <- evalLazy e1 r
+  b <- evalLazy e2 r 
+  return (a * b)
+evalLazy (Div e1 e2) r = 
+  do 
+  a <- evalLazy e1 r
+  b <- evalLazy e2 r 
+  case b of 
+    0 -> Left EDivZero
+    c ->  return (a `div` c)
+evalLazy (Pow e1 e2) r = 
+  do 
+  a <- evalLazy e1 r
+  b <- evalLazy e2 r 
+  if b < 0 then Left ENegPower else return (a ^ b)
+evalLazy (If e1 e2 e3) r = 
+  do 
+  a <- evalLazy e1 r
+  if a /= 0 then evalLazy e2 r else evalLazy e3 r
+evalLazy (Let v e1 e2) r = evalLazy e2 (extendEnv v (evalFull e1 r) r)
+evalLazy (Sum v e1 e2 e3) r = 
+  do 
+  a <- evalLazy e1 r 
+  b <- evalLazy e2 r 
+  if a > b then return 0 else 
+    do 
+    aa <- evalLazy e3 (extendEnv v a r)
+    bb <- evalLazy(Sum v (Add (Cst a) (Cst 1)) (Cst b) e3) r
+    return (aa + bb)

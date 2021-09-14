@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1d8443baddcfacf0e552152dedd2fe1e6b3e9298b58651a7399c2887d9bfa4de
+-- hash: 480f3ebf196626087f4c556eb490cfc1bc77ddec29a7891b432c48662a4af0b0
 
 name:           arithmetic
 version:        0.0.0
@@ -15,6 +15,7 @@ library
       Arithmetic
       Definitions
   other-modules:
+      Arithmetic_beate
       Paths_arithmetic
   hs-source-dirs:
       src
@@ -28,6 +29,7 @@ test-suite my-test-suite
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test_beate
       Paths_arithmetic
   hs-source-dirs:
       tests
