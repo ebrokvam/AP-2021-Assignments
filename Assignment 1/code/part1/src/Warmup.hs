@@ -12,8 +12,7 @@ move East  (x,y) = (x+1, y)
 move South (x,y) = (x, y-1)
 
 moves :: [Direction] -> Pos -> Pos
-moves [] y = y
-moves (x:xs) y = moves xs (move x y)
+moves xs y = foldl (flip move) y xs
 
 data Nat = Zero | Succ Nat
   deriving (Eq, Show, Read, Ord)

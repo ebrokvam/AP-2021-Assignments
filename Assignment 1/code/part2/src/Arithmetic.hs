@@ -18,7 +18,7 @@ import Definitions
 import Data.Maybe (fromMaybe)
 
 showExp :: Exp -> String
-showExp (Cst e) = show e
+showExp (Cst e) = if e < 0 then "(" ++ show e ++ ")" else show e
 showExp (Add e1 e2) = "(" ++ showExp e1 ++ "+" ++ showExp e2 ++ ")" 
 showExp (Sub e1 e2) = "(" ++ showExp e1 ++ "-" ++ showExp e2 ++ ")"
 showExp (Mul e1 e2) = "(" ++ showExp e1 ++ "*" ++ showExp e2 ++ ")"
@@ -32,7 +32,7 @@ evalSimple (Add e1 e2) = evalSimple e1 + evalSimple e2
 evalSimple (Sub e1 e2) = evalSimple e1 - evalSimple e2
 evalSimple (Mul e1 e2) = evalSimple e1 * evalSimple e2
 evalSimple (Div e1 e2) = evalSimple e1 `div` evalSimple e2
-evalSimple (Pow e1 e2) = evalSimple e1 ^ evalSimple e2
+evalSimple (Pow e1 e2) = if evalSimple e2 < 0 then error "power to negative number" else evalSimple e1 `seq` (evalSimple e1 ^ evalSimple e2)
 evalSimple _ = error "can only evaluate simple expressions"
 
 extendEnv :: VName -> Integer -> Env -> Env
@@ -44,7 +44,7 @@ evalFull (Add e1 e2) r = evalFull e1 r + evalFull e2 r
 evalFull (Sub e1 e2) r = evalFull e1 r - evalFull e2 r
 evalFull (Mul e1 e2) r = evalFull e1 r * evalFull e2 r
 evalFull (Div e1 e2) r = evalFull e1 r `div` evalFull e2 r
-evalFull (Pow e1 e2) r = evalFull e1 r ^ evalFull e2 r
+evalFull (Pow e1 e2) r = if evalFull e2 r < 0 then error "power to negative number" else evalFull e1 r `seq` (evalFull e1 r ^ evalFull e2 r)
 evalFull (If e1 e2 e3) r = if evalFull e1 r /= 0 then evalFull e2 r else evalFull e3 r
 evalFull (Var v) r = fromMaybe (error "no value bound to variable") (r v)
 evalFull (Let v e1 e2) r = evalFull e2 (extendEnv v (evalFull e1 r) r)
@@ -115,63 +115,27 @@ showCompact e = case e of
   (Pow e1 e2) -> showCompact e1 ++ "^" ++ showCompact e2
   _ -> error "Not allowed expression"
 
+-- showCompact :: Exp -> Bool -> String
+-- showCompact e b = case e of
+--   (Cst n) -> show n 
+--   (Add e1 e2) -> needParenthese e1 b ++ showCompact e1 b ++ "+" ++  showCompact e2 True
+--   (Sub e1 e2) -> showCompact e1 b ++ "-" ++ showCompact e2 b
+--   (Mul e1 e2) -> showCompact e1 b ++ "*" ++ showCompact e2 b 
+--   (Div e1 e2) -> showCompact e1 b ++ "`div`" ++ showCompact e2 b
+--   (Pow e1 e2) -> showCompact e1 b ++ "^" ++ showCompact e2 b
+--   _ -> error "Not allowed expression"
 
- -----------  *Pow (Div (Cst 4) (Cst 0)) (Cst 0):      1
+
+needParenthese :: Exp -> Bool -> String
+needParenthese (Cst _) False = ""
+needParenthese e b = if b then "(" ++ needParenthese e b ++ ")" else needParenthese e b
+
 
 {-
 Our current evalErr already implements eager evaluation 
-hence why we have re-used it in evalEager
 -}
 evalEager :: Exp -> Env -> Either ArithError Integer
-evalEager (Cst e) _ = return e
-evalEager (Var v) r = 
-  case r v of
-    Nothing -> Left (EBadVar v) 
-    Just x -> Right x
-evalEager (Add e1 e2) r = 
-  do 
-  a <- evalEager e1 r
-  b <- evalEager e2 r 
-  return (a + b)
-evalEager (Sub e1 e2) r = 
-  do 
-  a <- evalEager e1 r
-  b <- evalEager e2 r 
-  return (a - b)
-evalEager (Mul e1 e2) r = 
-  do 
-  a <- evalEager e1 r
-  b <- evalEager e2 r 
-  return (a * b)
-evalEager (Div e1 e2) r = 
-  do 
-  a <- evalEager e1 r
-  b <- evalEager e2 r 
-  case b of 
-    0 -> Left EDivZero
-    c ->  return (a `div` c)
-evalEager (Pow e1 e2) r = 
-  do 
-  a <- evalEager e1 r
-  b <- evalEager e2 r 
-  if b < 0 then Left ENegPower else return (a ^ b)
-evalEager (If e1 e2 e3) r = 
-  do 
-  a <- evalEager e1 r
-  if a /= 0 then evalEager e2 r else evalEager e3 r
-evalEager (Let v e1 e2) r = 
-  do
-  a <- evalEager e1 r 
-  evalEager e2 (extendEnv v a r)
-evalEager (Sum v e1 e2 e3) r = 
-  do 
-  a <- evalEager e1 r 
-  b <- evalEager e2 r 
-  if a > b then return 0 else 
-    do 
-    aa <- evalEager e3 (extendEnv v a r)
-    bb <- evalEager(Sum v (Add (Cst a) (Cst 1)) (Cst b) e3) r
-    return (aa + bb)
+evalEager = evalErr
 
 {-
 Our current evalFull already implements eager evaluation 

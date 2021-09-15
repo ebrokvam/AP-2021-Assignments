@@ -42,7 +42,6 @@ tests = [
   evalFullVarInitEnv,
   evalFullVarExistingEnv,
   evalFullLet,
-  evalFullLetNested,
   evalFullLetUnusedBind,
   evalFullLetLazyEval,
   evalFullSum,
@@ -67,7 +66,6 @@ tests = [
   evalErrVarExistingEnv,
   evalErrVarBadVar,
   evalErrLet,
-  evalErrLetNested,
   evalErrLetUnusedBind,
   evalErrLetAttemptAccessUnbound,
   evalErrLetEagerEval,
@@ -105,7 +103,6 @@ tests = [
   evalEagerVarExistingEnv,
   evalEagerVarBadVar,
   evalEagerLet,
-  evalEagerLetNested,
   evalEagerLetUnusedBind,
   evalEagerLetAttemptAccessUnbound,
   evalEagerLetEagerEval,
@@ -130,7 +127,6 @@ tests = [
   evalLazyVarExistingEnv,
   evalLazyVarBadVar,
   evalLazyLet,
-  evalLazyLetNested,
   evalLazyLetUnusedBind,
   evalLazyLetAttemptAccessUnbound,
   evalLazyLetLazyEval,
@@ -146,7 +142,8 @@ tests = [
   showExpPow = ("showExpPow", showExp (Pow (Cst 2) (Cst 2)) == "(2^2)")
   showExpNestedParenthesis1 = ("showExpNestedParenthesis1", showExp (Add (Mul (Cst 2) (Cst 3)) (Cst 4)) == "((2*3)+4)")
   showExpNestedParenthesis2 = ("showExpNestedParenthesis2", showExp (Add (Div (Cst 15) (Cst 3)) (Cst 9)) == "((15`div`3)+9)")
-  -- Should we upgarde our test suite, we would also test errors for:
+  -- If we upgarde our test suite, we would also test errors for:
+  -- showExpNegativeCst
   -- showExpIf
   -- showExpVar
   -- showExpLet
@@ -161,9 +158,10 @@ tests = [
   evalSimpleDivFloor2 = ("evalSimpleDivFloor2", evalSimple (Div (Cst (-7)) (Cst 2)) == (-4))
   evalSimplePow = ("evalSimplePow", evalSimple (Pow (Cst 2) (Cst 2)) == 4)
   evalSimplePowZero = ("evalSimplePowZero", evalSimple (Pow (Cst 2) (Cst 0)) == 1)
-  -- Should we upgarde our test suite, we would also test errors for:
+  -- If we upgarde our test suite, we would also test errors for:
   -- evalSimpleDivZero
   -- evalSimplePowNegative
+  -- evalSimplePowErrorPropagation
   -- evalSimpleIf
   -- evalSimpleVar
   -- evalSimpleLet
@@ -184,13 +182,13 @@ tests = [
   evalFullVarInitEnv = ("evalFullVarInitEnv", evalFull (Var "v") (extendEnv "v" 1 initEnv) == 1)
   evalFullVarExistingEnv = ("evalFullVarExistingEnv", evalFull (Var "b") (extendEnv "v" 1 (extendEnv "b" 4 initEnv)) == 4)
   evalFullLet = ("evalFullLet", evalFull (Let "v" (Cst 1) (Add (Var "v") (Cst 5))) initEnv == 6)
-  evalFullLetNested = ("evalFullLetNested", evalFull (Let "v" (Cst 1) (Let "v" (Cst 3) (Add (Var "v") (Cst 5)))) initEnv == 9)
   evalFullLetUnusedBind = ("evalFullLetUnusedBind", evalFull (Let "v" (Cst 1) (Cst 1)) initEnv == 1)
   evalFullLetLazyEval = ("evalFullLetLazyEval", evalFull (Let "v" (Div (Cst 4) (Cst 0)) (Cst 5)) initEnv == 5)
   evalFullSum = ("evalFullSum", evalFull (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == 30)
-  -- Should we upgarde our test suite, we would also test errors for:
+  -- If we upgarde our test suite, we would also test errors for:
   -- evalFullDivZero
   -- evalFullPowNegative
+  -- evalFullPowErrorPropagation
   -- evalFullVarBadVar
   -- evalFullAttemptAccessUnbound
   -- evalFullSumToLessThanFrom
@@ -215,15 +213,15 @@ tests = [
   evalErrVarExistingEnv = ("evalErrVarExistingEnv", evalErr (Var "b") (extendEnv "v" 1 (extendEnv "b" 4 initEnv)) == Right 4)
   evalErrVarBadVar = ("evalErrVarBadVar",  evalErr (Var "v") initEnv == Left (EBadVar "v"))
   evalErrLet = ("evalErrLet", evalErr (Let "v" (Cst 1) (Add (Var "v") (Cst 5))) initEnv == Right 6)
-  evalErrLetNested = ("evalErrLetNested", evalErr (Let "v" (Cst 1) (Let "v" (Cst 3) (Add (Var "v") (Cst 5)))) initEnv == Right 9)
   evalErrLetUnusedBind = ("evalErrLetUnusedBind", evalErr (Let "v" (Cst 1) (Cst 1)) initEnv == Right 1)
   evalErrLetAttemptAccessUnbound = ("evalErrLetAttemptAccessUnbound", evalErr (Let "v" (Cst 1) (Add (Cst 1) (Var "x"))) initEnv == Left (EBadVar "x"))
   evalErrLetEagerEval = ("evalErrLetEagerEval", evalErr (Let "v" (Div (Cst 4) (Cst 0)) (Cst 5)) initEnv == Left EDivZero)
   evalErrSum = ("evalErrSum", evalErr (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == Right 30)
   evalErrSumToLessThanFrom = ("evalErrSumToLessThanFrom", evalErr (Sum "v" (Cst 2) (Cst 1) (Mul (Var "v") (Var "v"))) initEnv == Right 0)
+  -- If we upgarde our test suite, we would also test for:
+  -- evalErrLeftToRight
 
   -- optional parts
-
   showCompactCst = ("showCompactCst", showCompact (Cst 2) == "2")
   showCompactAdd = ("showCompactAdd", showCompact (Add (Cst 2) (Cst 2)) == "2+2")
   showCompactSub = ("showCompactSub", showCompact (Sub (Cst 2) (Cst 2)) == "2-2")
@@ -234,7 +232,7 @@ tests = [
   showCompactComplex1 = ("showCompactComplex1", showCompact (Add (Cst 2) (Mul (Cst 3) (Cst 4))) == "2+3*4")
   showCompactComplex2 = ("showCompactComplex2", showCompact (Add (Cst 2) (Add (Cst 3) (Cst 4))) == "2+(3+4)")
   showCompactComplex3 = ("showCompactComplex3", showCompact (Pow (Cst 2) (Pow (Cst 3) (Cst 4))) == "2^(3^4)")
-  -- Should we upgarde our test suite, we would also test errors for:
+  -- If we upgarde our test suite, we would also test errors for:
   -- showCompactIf
   -- showCompactVar
   -- showCompactLet
@@ -258,12 +256,13 @@ tests = [
   evalEagerVarExistingEnv = ("evalEagerVarExistingEnv", evalEager (Var "b") (extendEnv "v" 1 (extendEnv "b" 4 initEnv)) == Right 4)
   evalEagerVarBadVar = ("evalEagerVarBadVar",  evalEager (Var "v") initEnv == Left (EBadVar "v"))
   evalEagerLet = ("evalEagerLet", evalEager (Let "v" (Cst 1) (Add (Var "v") (Cst 5))) initEnv == Right 6)
-  evalEagerLetNested = ("evalEagerLetNested", evalEager (Let "v" (Cst 1) (Let "v" (Cst 3) (Add (Var "v") (Cst 5)))) initEnv == Right 9)
   evalEagerLetUnusedBind = ("evalEagerLetUnusedBind", evalEager (Let "v" (Cst 1) (Cst 1)) initEnv == Right 1)
   evalEagerLetAttemptAccessUnbound = ("evalEagerLetAttemptAccessUnbound", evalEager (Let "v" (Cst 1) (Add (Cst 1) (Var "x"))) initEnv == Left (EBadVar "x"))
   evalEagerLetEagerEval = ("evalEagerLetEagerEval", evalEager (Let "v" (Div (Cst 4) (Cst 0)) (Cst 5)) initEnv == Left EDivZero)
   evalEagerSum = ("evalEagerSum", evalEager (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == Right 30)
   evalEagerSumToLessThanFrom = ("evalEagerSumToLessThanFrom", evalEager (Sum "v" (Cst 2) (Cst 1) (Mul (Var "v") (Var "v"))) initEnv == Right 0)
+  -- If we upgarde our test suite, we would also test for:
+  -- evalEagerLeftToRight
 
   evalLazyCst = ("evalLazyCst", evalLazy (Cst 2) initEnv == Right 2)
   evalLazyAdd = ("evalLazyAdd", evalLazy (Add (Cst 2) (Cst 2)) initEnv == Right 4)
@@ -283,12 +282,14 @@ tests = [
   evalLazyVarExistingEnv = ("evalLazyVarExistingEnv", evalLazy (Var "b") (extendEnv "v" 1 (extendEnv "b" 4 initEnv)) == Right 4)
   evalLazyVarBadVar = ("evalLazyVarBadVar",  evalLazy (Var "v") initEnv == Left (EBadVar "v"))
   evalLazyLet = ("evalLazyLet", evalLazy (Let "v" (Cst 1) (Add (Var "v") (Cst 5))) initEnv == Right 6)
-  evalLazyLetNested = ("evalLazyLetNested", evalLazy (Let "v" (Cst 1) (Let "v" (Cst 3) (Add (Var "v") (Cst 5)))) initEnv == Right 9)
   evalLazyLetUnusedBind = ("evalLazyLetUnusedBind", evalLazy (Let "v" (Cst 1) (Cst 1)) initEnv == Right 1)
   evalLazyLetAttemptAccessUnbound = ("evalLazyLetAttemptAccessUnbound", evalLazy (Let "v" (Cst 1) (Add (Cst 1) (Var "x"))) initEnv == Left (EBadVar "x"))
   evalLazyLetLazyEval = ("evalLazyLetLazyEval", evalLazy (Let "v" (Div (Cst 4) (Cst 0)) (Cst 5)) initEnv == Right 5)
   evalLazySum = ("evalLazySum", evalLazy (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == Right 30)
   evalLazySumToLessThanFrom = ("evalLazySumToLessThanFrom", evalLazy (Sum "v" (Cst 2) (Cst 1) (Mul (Var "v") (Var "v"))) initEnv == Right 0)
+  -- If we upgarde our test suite, we would also test for:
+  -- evalLazyLeftToRight
+
 main :: IO ()
 main =
   let failed = [name | (name, ok) <- tests, not ok]
