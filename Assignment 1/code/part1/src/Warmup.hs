@@ -47,7 +47,6 @@ insert x (Node y a b)
 
 -- The polymorphic variant, to avoid name clashes with the above
 data PTree a = PLeaf | PNode a (PTree a) (PTree a)
-  deriving (Show) -- Just added this for testing purposes, hope that's okay
 
 -- must have type class Ord
 pinsert :: Ord a => a -> PTree a -> PTree a 
