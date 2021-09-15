@@ -41,8 +41,8 @@ data Tree = Leaf | Node Int Tree Tree
 insert :: Int -> Tree -> Tree
 insert x Leaf = Node x Leaf Leaf
 insert x (Node y a b)
-  | x > y = Node y (insert x a) b
-  | x < y = Node y a (insert x b)
+  | x < y = Node y (insert x a) b
+  | x > y = Node y a (insert x b)
   | otherwise = Node y a b
 
 -- The polymorphic variant, to avoid name clashes with the above
@@ -52,6 +52,6 @@ data PTree a = PLeaf | PNode a (PTree a) (PTree a)
 pinsert :: Ord a => a -> PTree a -> PTree a 
 pinsert x PLeaf = PNode x PLeaf PLeaf
 pinsert x (PNode y a b)
-  | x > y = PNode y (pinsert x a) b
-  | x < y = PNode y a (pinsert x b)
+  | x < y = PNode y (pinsert x a) b
+  | x > y = PNode y a (pinsert x b)
   | otherwise = PNode y a b

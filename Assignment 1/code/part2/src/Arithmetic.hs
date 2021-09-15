@@ -15,101 +15,95 @@ module Arithmetic
 where
 
 import Definitions
+import Data.Maybe (fromMaybe)
 
 showExp :: Exp -> String
-showExp (Cst x) = show x
-showExp (Add x y) = "(" ++ showExp x ++ "+" ++ showExp y ++ ")" 
-showExp (Sub x y) = "(" ++ showExp x ++ "-" ++ showExp y ++ ")"
-showExp (Mul x y) = "(" ++ showExp x ++ "*" ++ showExp y ++ ")"
-showExp (Div x y) = "(" ++ showExp x ++ "`div`" ++ showExp y ++ ")"
-showExp (Pow x y) = "(" ++ showExp x ++ "^" ++ showExp y ++ ")"
+showExp (Cst e) = show e
+showExp (Add e1 e2) = "(" ++ showExp e1 ++ "+" ++ showExp e2 ++ ")" 
+showExp (Sub e1 e2) = "(" ++ showExp e1 ++ "-" ++ showExp e2 ++ ")"
+showExp (Mul e1 e2) = "(" ++ showExp e1 ++ "*" ++ showExp e2 ++ ")"
+showExp (Div e1 e2) = "(" ++ showExp e1 ++ "`div`" ++ showExp e2 ++ ")"
+showExp (Pow e1 e2) = "(" ++ showExp e1 ++ "^" ++ showExp e2 ++ ")"
 showExp _ = error "cannot only show simple expressions"
 
 evalSimple :: Exp -> Integer
-evalSimple (Cst x) = x
-evalSimple (Add x y) = evalSimple x + evalSimple y
-evalSimple (Sub x y) = evalSimple x - evalSimple y
-evalSimple (Mul x y) = evalSimple x * evalSimple y
-evalSimple (Div x y) = evalSimple x `div` evalSimple y
-evalSimple (Pow x y) = evalSimple x ^ evalSimple y
+evalSimple (Cst e) = e
+evalSimple (Add e1 e2) = evalSimple e1 + evalSimple e2
+evalSimple (Sub e1 e2) = evalSimple e1 - evalSimple e2
+evalSimple (Mul e1 e2) = evalSimple e1 * evalSimple e2
+evalSimple (Div e1 e2) = evalSimple e1 `div` evalSimple e2
+evalSimple (Pow e1 e2) = evalSimple e1 ^ evalSimple e2
 evalSimple _ = error "can only evaluate simple expressions"
 
 extendEnv :: VName -> Integer -> Env -> Env
 extendEnv v n r v' = if v == v' then Just n else r v'
 
 evalFull :: Exp -> Env -> Integer
-evalFull (Cst x) _ = x
-evalFull (Add x y) r = evalFull x r + evalFull y r
-evalFull (Sub x y) r = evalFull x r - evalFull y r
-evalFull (Mul x y) r = evalFull x r * evalFull y r
-evalFull (Div x y) r = evalFull x r `div` evalFull y r
-evalFull (Pow x y) r = evalFull x r ^ evalFull y r
-evalFull (If test yes no) r = if evalFull test r /= 0 then evalFull yes r else evalFull no r
-evalFull (Var var) r = case r var of
-  Just n -> n
-  Nothing -> error "no value bound to variable"
-evalFull (Let var def body) r = evalFull body (extendEnv var (evalFull def r) r)
-evalFull (Sum var from to body) r = sum [evalFull body (extendEnv var x r) | x <- [(evalFull from r)..(evalFull to r)]]
+evalFull (Cst e) _ = e
+evalFull (Add e1 e2) r = evalFull e1 r + evalFull e2 r
+evalFull (Sub e1 e2) r = evalFull e1 r - evalFull e2 r
+evalFull (Mul e1 e2) r = evalFull e1 r * evalFull e2 r
+evalFull (Div e1 e2) r = evalFull e1 r `div` evalFull e2 r
+evalFull (Pow e1 e2) r = evalFull e1 r ^ evalFull e2 r
+evalFull (If e1 e2 e3) r = if evalFull e1 r /= 0 then evalFull e2 r else evalFull e3 r
+evalFull (Var v) r = fromMaybe (error "no value bound to variable") (r v)
+evalFull (Let v e1 e2) r = evalFull e2 (extendEnv v (evalFull e1 r) r)
+evalFull (Sum v e1 e2 e3) r = sum [evalFull e3 (extendEnv v x r) | x <- [(evalFull e1 r)..(evalFull e2 r)]]
 
 evalErr :: Exp -> Env -> Either ArithError Integer
-evalErr (Cst x) _ = return x
-evalErr (Add x y) r = 
-  do
-  a <- evalErr x r
-  b <- evalErr y r
-  return $ a + b
-evalErr (Sub x y) r = 
-  do
-  a <- evalErr x r
-  b <- evalErr y r
-  return $ a - b
-evalErr (Mul x y) r = 
-  do
-  a <- evalErr x r
-  b <- evalErr y r
-  return $ a * b
-evalErr (Div x y) r = 
-  do
-  a <- evalErr x r
-  b <- evalErr y r
+evalErr (Cst e) _ = return e
+evalErr (Var v) r = 
+  case r v of
+    Nothing -> Left (EBadVar v) 
+    Just x -> Right x
+evalErr (Add e1 e2) r = 
+  do 
+  a <- evalErr e1 r
+  b <- evalErr e2 r 
+  return (a + b)
+evalErr (Sub e1 e2) r = 
+  do 
+  a <- evalErr e1 r
+  b <- evalErr e2 r 
+  return (a - b)
+evalErr (Mul e1 e2) r = 
+  do 
+  a <- evalErr e1 r
+  b <- evalErr e2 r 
+  return (a * b)
+evalErr (Div e1 e2) r = 
+  do 
+  a <- evalErr e1 r
+  b <- evalErr e2 r 
   case b of 
     0 -> Left EDivZero
-    _ -> return (a `div` b)
-evalErr (Pow x y) r = 
+    c ->  return (a `div` c)
+evalErr (Pow e1 e2) r = 
+  do 
+  a <- evalErr e1 r
+  b <- evalErr e2 r 
+  if b < 0 then Left ENegPower else return (a ^ b)
+evalErr (If e1 e2 e3) r = 
+  do 
+  a <- evalErr e1 r
+  if a /= 0 then evalErr e2 r else evalErr e3 r
+evalErr (Let v e1 e2) r = 
   do
-  a <- evalErr x r
-  b <- evalErr y r
-  if b < 0
-    then Left ENegPower
-    else return (a ^ b)
-evalErr (If test yes no) r =
-  case evalErr test r of
-    Left error -> Left error
-    Right x -> 
-      if x /= 0
-        then evalErr yes r
-        else evalErr no r
-evalErr (Var v) r =
-  case r v of
-    Nothing -> Left (EBadVar "v")
-    Just x -> Right x
-evalErr (Let var def body) r =
-  do
-  resOfDef <- evalErr def r 
-  evalErr body (extendEnv var resOfDef r)
-evalErr (Sum var from to body) r =
-  do
-  a <- evalErr from r
-  b <- evalErr to r
-  if a > b then return 0 else
+  a <- evalErr e1 r 
+  evalErr e2 (extendEnv v a r)
+evalErr (Sum v e1 e2 e3) r = 
+  do 
+  a <- evalErr e1 r 
+  b <- evalErr e2 r 
+  if a > b then return 0 else 
     do 
-      aa <- evalErr body (extendEnv var a r)
-      bb <- evalErr(Sum var (Add (Cst a) (Cst 1)) (Cst b) body) r
-      return (aa + bb)
+    aa <- evalErr e3 (extendEnv v a r)
+    bb <- evalErr(Sum v (Add (Cst a) (Cst 1)) (Cst b) e3) r
+    return (aa + bb)
   
 
 
--- optional parts (if not attempted, leave them unmodified)
+-- optional parts
 
 showCompact :: Exp -> String
 showCompact e = case e of
@@ -122,21 +116,7 @@ showCompact e = case e of
   _ -> error "Not allowed expression"
 
 
--- showCompact :: Exp -> Bool -> String
--- showCompact e b = case e of
---   (Cst n) -> show n 
---   (Add e1 e2) -> needParenthese e1 b ++ showCompact e1 b ++ "+" ++  showCompact e2 True
---   (Sub e1 e2) -> showCompact e1 b ++ "-" ++ showCompact e2 b
---   (Mul e1 e2) -> showCompact e1 b ++ "*" ++ showCompact e2 b 
---   (Div e1 e2) -> showCompact e1 b ++ "`div`" ++ showCompact e2 b
---   (Pow e1 e2) -> showCompact e1 b ++ "^" ++ showCompact e2 b
---   _ -> error "Not allowed expression"
-
-
-needParenthese :: Exp -> Bool -> String
-needParenthese (Cst _) False = ""
-needParenthese e b = if b then "(" ++ needParenthese e b ++ ")" else needParenthese e b
-
+ -----------  *Pow (Div (Cst 4) (Cst 0)) (Cst 0):      1
 
 {-
 Our current evalErr already implements eager evaluation 
@@ -192,8 +172,6 @@ evalEager (Sum v e1 e2 e3) r =
     aa <- evalEager e3 (extendEnv v a r)
     bb <- evalEager(Sum v (Add (Cst a) (Cst 1)) (Cst b) e3) r
     return (aa + bb)
-
-
 
 {-
 Our current evalFull already implements eager evaluation 

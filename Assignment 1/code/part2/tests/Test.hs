@@ -14,7 +14,8 @@ tests = [
   showExpMul,
   showExpDiv,
   showExpPow,
-  showExpNestedParenthesis,
+  showExpNestedParenthesis1,
+  showExpNestedParenthesis2,
 
   evalSimpleCst,
   evalSimpleAdd,
@@ -71,20 +72,80 @@ tests = [
   evalErrLetAttemptAccessUnbound,
   evalErrLetEagerEval,
   evalErrSum,
-  evalErrSumToLessThanFrom
+  evalErrSumToLessThanFrom,
+
+  -- optional parts
+
+  showCompactCst,
+  showCompactAdd,
+  showCompactSub,
+  showCompactMul,
+  showCompactDiv,
+  showCompactPow,
+  showCompactNestedParenthesis,
+  showCompactComplex1,
+  showCompactComplex2,
+  showCompactComplex3,
+
+  evalEagerCst,
+  evalEagerAdd,
+  evalEagerSub,
+  evalEagerMul,
+  evalEagerDiv,
+  evalEagerDivFloor1,
+  evalEagerDivFloor2,
+  evalEagerDivZero,
+  evalEagerPow,
+  evalEagerPowNegative,
+  evalEagerPowZero,
+  evalEagerIf1,
+  evalEagerIf2,
+  evalEagerIfNoRuntimeError,
+  evalEagerVarInitEnv,
+  evalEagerVarExistingEnv,
+  evalEagerVarBadVar,
+  evalEagerLet,
+  evalEagerLetNested,
+  evalEagerLetUnusedBind,
+  evalEagerLetAttemptAccessUnbound,
+  evalEagerLetEagerEval,
+  evalEagerSum,
+  evalEagerSumToLessThanFrom,
+
+  evalLazyCst,
+  evalLazyAdd,
+  evalLazySub,
+  evalLazyMul,
+  evalLazyDiv,
+  evalLazyDivFloor1,
+  evalLazyDivFloor2,
+  evalLazyDivZero,
+  evalLazyPow,
+  evalLazyPowNegative,
+  evalLazyPowZero,
+  evalLazyIf1,
+  evalLazyIf2,
+  evalLazyIfNoRuntimeError,
+  evalLazyVarInitEnv,
+  evalLazyVarExistingEnv,
+  evalLazyVarBadVar,
+  evalLazyLet,
+  evalLazyLetNested,
+  evalLazyLetUnusedBind,
+  evalLazyLetAttemptAccessUnbound,
+  evalLazyLetLazyEval,
+  evalLazySum,
+  evalLazySumToLessThanFrom
 
   ] where
-  -- test1 = ("test1", evalSimple (Add (Cst 2) (Cst 2)) == 4)
-  -- test2 = ("test2", evalFull (Let "a" (Cst 42) (Var "a")) initEnv == 42)
-  -- test3 = ("test3", evalErr (Var "x") initEnv == Left (EBadVar "x"))
-
   showExpCst = ("showExpCst", showExp (Cst 2) == "2")
   showExpAdd = ("showExpAdd", showExp (Add (Cst 2) (Cst 2)) == "(2+2)")
   showExpSub = ("showExpSub", showExp (Sub (Cst 2) (Cst 2)) == "(2-2)")
   showExpMul = ("showExpMul", showExp (Mul (Cst 2) (Cst 2)) == "(2*2)")
   showExpDiv = ("showExpDiv", showExp (Div (Cst 2) (Cst 2)) == "(2`div`2)")
   showExpPow = ("showExpPow", showExp (Pow (Cst 2) (Cst 2)) == "(2^2)")
-  showExpNestedParenthesis = ("showExpNestedParenthesis", showExp (Add (Mul (Cst 2) (Cst 3)) (Cst 4)) == "((2*3)+4)")
+  showExpNestedParenthesis1 = ("showExpNestedParenthesis1", showExp (Add (Mul (Cst 2) (Cst 3)) (Cst 4)) == "((2*3)+4)")
+  showExpNestedParenthesis2 = ("showExpNestedParenthesis2", showExp (Add (Div (Cst 15) (Cst 3)) (Cst 9)) == "((15`div`3)+9)")
   -- Should we upgarde our test suite, we would also test errors for:
   -- showExpIf
   -- showExpVar
@@ -161,6 +222,73 @@ tests = [
   evalErrSum = ("evalErrSum", evalErr (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == Right 30)
   evalErrSumToLessThanFrom = ("evalErrSumToLessThanFrom", evalErr (Sum "v" (Cst 2) (Cst 1) (Mul (Var "v") (Var "v"))) initEnv == Right 0)
 
+  -- optional parts
+
+  showCompactCst = ("showCompactCst", showCompact (Cst 2) == "2")
+  showCompactAdd = ("showCompactAdd", showCompact (Add (Cst 2) (Cst 2)) == "2+2")
+  showCompactSub = ("showCompactSub", showCompact (Sub (Cst 2) (Cst 2)) == "2-2")
+  showCompactMul = ("showCompactMul", showCompact (Mul (Cst 2) (Cst 2)) == "2*2")
+  showCompactDiv = ("showCompactDiv", showCompact (Div (Cst 2) (Cst 2)) == "2`div`2")
+  showCompactPow = ("showCompactPow", showCompact (Pow (Cst 2) (Cst 2)) == "2^2")
+  showCompactNestedParenthesis = ("showCompactNestedParenthesis", showCompact (Add (Mul (Cst 2) (Cst 3)) (Cst 4)) == "2*3+4")
+  showCompactComplex1 = ("showCompactComplex1", showCompact (Add (Cst 2) (Mul (Cst 3) (Cst 4))) == "2+3*4")
+  showCompactComplex2 = ("showCompactComplex2", showCompact (Add (Cst 2) (Add (Cst 3) (Cst 4))) == "2+(3+4)")
+  showCompactComplex3 = ("showCompactComplex3", showCompact (Pow (Cst 2) (Pow (Cst 3) (Cst 4))) == "2^(3^4)")
+  -- Should we upgarde our test suite, we would also test errors for:
+  -- showCompactIf
+  -- showCompactVar
+  -- showCompactLet
+  -- showCompactSum
+
+  evalEagerCst = ("evalEagerCst", evalEager (Cst 2) initEnv == Right 2)
+  evalEagerAdd = ("evalEagerAdd", evalEager (Add (Cst 2) (Cst 2)) initEnv == Right 4)
+  evalEagerSub = ("evalEagerSub", evalEager (Sub (Cst 2) (Cst 2)) initEnv == Right 0)
+  evalEagerMul = ("evalEagerMul", evalEager (Mul (Cst 2) (Cst 2)) initEnv== Right 4)
+  evalEagerDiv = ("evalEagerDiv", evalEager (Div (Cst 2) (Cst 2)) initEnv== Right 1)
+  evalEagerDivFloor1 = ("evalEagerDivFloor1", evalEager (Div (Cst 7) (Cst 2)) initEnv == Right 3)
+  evalEagerDivFloor2 = ("evalEagerDivFloor2", evalEager (Div (Cst (-7)) (Cst 2)) initEnv == Right (-4))
+  evalEagerDivZero = ("evalEagerDivZero", evalEager (Div (Cst 2) (Cst 0)) initEnv == Left EDivZero)
+  evalEagerPow = ("evalEagerPow", evalEager (Pow (Cst 2) (Cst 2)) initEnv == Right 4)
+  evalEagerPowNegative = ("evalEagerPowNegative", evalEager (Pow (Cst 2) (Cst (-2))) initEnv == Left ENegPower)
+  evalEagerPowZero = ("evalEagerPowZero", evalEager (Pow (Cst 2) (Cst 0)) initEnv == Right 1)
+  evalEagerIf1 = ("evalEagerIf1", evalEager (If (Cst 1) (Cst 1) (Cst 2)) initEnv == Right 1)
+  evalEagerIf2 = ("evalEagerIf2", evalEager (If (Cst 0) (Cst 1) (Cst 2)) initEnv == Right 2)
+  evalEagerIfNoRuntimeError = ("evalEagerIfNoRuntimeError", evalEager (If (Cst 1) (Cst 1) (Div (Cst 1) (Cst 0))) initEnv == Right 1)
+  evalEagerVarInitEnv = ("evalEagerVarInitEnv", evalEager (Var "v") (extendEnv "v" 1 initEnv) == Right 1)
+  evalEagerVarExistingEnv = ("evalEagerVarExistingEnv", evalEager (Var "b") (extendEnv "v" 1 (extendEnv "b" 4 initEnv)) == Right 4)
+  evalEagerVarBadVar = ("evalEagerVarBadVar",  evalEager (Var "v") initEnv == Left (EBadVar "v"))
+  evalEagerLet = ("evalEagerLet", evalEager (Let "v" (Cst 1) (Add (Var "v") (Cst 5))) initEnv == Right 6)
+  evalEagerLetNested = ("evalEagerLetNested", evalEager (Let "v" (Cst 1) (Let "v" (Cst 3) (Add (Var "v") (Cst 5)))) initEnv == Right 9)
+  evalEagerLetUnusedBind = ("evalEagerLetUnusedBind", evalEager (Let "v" (Cst 1) (Cst 1)) initEnv == Right 1)
+  evalEagerLetAttemptAccessUnbound = ("evalEagerLetAttemptAccessUnbound", evalEager (Let "v" (Cst 1) (Add (Cst 1) (Var "x"))) initEnv == Left (EBadVar "x"))
+  evalEagerLetEagerEval = ("evalEagerLetEagerEval", evalEager (Let "v" (Div (Cst 4) (Cst 0)) (Cst 5)) initEnv == Left EDivZero)
+  evalEagerSum = ("evalEagerSum", evalEager (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == Right 30)
+  evalEagerSumToLessThanFrom = ("evalEagerSumToLessThanFrom", evalEager (Sum "v" (Cst 2) (Cst 1) (Mul (Var "v") (Var "v"))) initEnv == Right 0)
+
+  evalLazyCst = ("evalLazyCst", evalLazy (Cst 2) initEnv == Right 2)
+  evalLazyAdd = ("evalLazyAdd", evalLazy (Add (Cst 2) (Cst 2)) initEnv == Right 4)
+  evalLazySub = ("evalLazySub", evalLazy (Sub (Cst 2) (Cst 2)) initEnv == Right 0)
+  evalLazyMul = ("evalLazyMul", evalLazy (Mul (Cst 2) (Cst 2)) initEnv== Right 4)
+  evalLazyDiv = ("evalLazyDiv", evalLazy (Div (Cst 2) (Cst 2)) initEnv== Right 1)
+  evalLazyDivFloor1 = ("evalLazyDivFloor1", evalLazy (Div (Cst 7) (Cst 2)) initEnv == Right 3)
+  evalLazyDivFloor2 = ("evalLazyDivFloor2", evalLazy (Div (Cst (-7)) (Cst 2)) initEnv == Right (-4))
+  evalLazyDivZero = ("evalLazyDivZero", evalLazy (Div (Cst 2) (Cst 0)) initEnv == Left EDivZero)
+  evalLazyPow = ("evalLazyPow", evalLazy (Pow (Cst 2) (Cst 2)) initEnv == Right 4)
+  evalLazyPowNegative = ("evalLazyPowNegative", evalLazy (Pow (Cst 2) (Cst (-2))) initEnv == Left ENegPower)
+  evalLazyPowZero = ("evalLazyPowZero", evalLazy (Pow (Cst 2) (Cst 0)) initEnv == Right 1)
+  evalLazyIf1 = ("evalLazyIf1", evalLazy (If (Cst 1) (Cst 1) (Cst 2)) initEnv == Right 1)
+  evalLazyIf2 = ("evalLazyIf2", evalLazy (If (Cst 0) (Cst 1) (Cst 2)) initEnv == Right 2)
+  evalLazyIfNoRuntimeError = ("evalLazyIfNoRuntimeError", evalLazy (If (Cst 1) (Cst 1) (Div (Cst 1) (Cst 0))) initEnv == Right 1)
+  evalLazyVarInitEnv = ("evalLazyVarInitEnv", evalLazy (Var "v") (extendEnv "v" 1 initEnv) == Right 1)
+  evalLazyVarExistingEnv = ("evalLazyVarExistingEnv", evalLazy (Var "b") (extendEnv "v" 1 (extendEnv "b" 4 initEnv)) == Right 4)
+  evalLazyVarBadVar = ("evalLazyVarBadVar",  evalLazy (Var "v") initEnv == Left (EBadVar "v"))
+  evalLazyLet = ("evalLazyLet", evalLazy (Let "v" (Cst 1) (Add (Var "v") (Cst 5))) initEnv == Right 6)
+  evalLazyLetNested = ("evalLazyLetNested", evalLazy (Let "v" (Cst 1) (Let "v" (Cst 3) (Add (Var "v") (Cst 5)))) initEnv == Right 9)
+  evalLazyLetUnusedBind = ("evalLazyLetUnusedBind", evalLazy (Let "v" (Cst 1) (Cst 1)) initEnv == Right 1)
+  evalLazyLetAttemptAccessUnbound = ("evalLazyLetAttemptAccessUnbound", evalLazy (Let "v" (Cst 1) (Add (Cst 1) (Var "x"))) initEnv == Left (EBadVar "x"))
+  evalLazyLetLazyEval = ("evalLazyLetLazyEval", evalLazy (Let "v" (Div (Cst 4) (Cst 0)) (Cst 5)) initEnv == Right 5)
+  evalLazySum = ("evalLazySum", evalLazy (Sum "v" (Cst 1) (Cst 4) (Mul (Var "v") (Var "v"))) initEnv == Right 30)
+  evalLazySumToLessThanFrom = ("evalLazySumToLessThanFrom", evalLazy (Sum "v" (Cst 2) (Cst 1) (Mul (Var "v") (Var "v"))) initEnv == Right 0)
 main :: IO ()
 main =
   let failed = [name | (name, ok) <- tests, not ok]
