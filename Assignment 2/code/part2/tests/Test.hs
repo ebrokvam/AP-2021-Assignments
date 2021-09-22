@@ -10,27 +10,16 @@ import Test.Tasty.HUnit
 main :: IO ()
 main = defaultMain $ localOption (mkTimeout 1000000) interpreterTests
 
-  -- [testCase "crash test" $
-  --   execute [SExp (Call "print" [Oper Plus (Const (IntVal 2))
-  --                                          (Const (IntVal 2))]),
-  --            SExp (Var "hello")]
-  --     @?= (["4"], Just (EBadVar "hello")),
-  --  testCase "execute misc.ast from handout" $
-  --    do pgm <- read <$> readFile "examples/misc.ast"
-  --       out <- readFile "examples/misc.out"
-  --       execute pgm @?= (lines out, Nothing)]
-
--- comp monad tests
 interpreterTests :: TestTree
 interpreterTests = testGroup "Tests for the boa interpreter"
     [testCase "return" $
         runComp (return ()) []
           @?= (Right (),[]),
-    -- TODO: more here
 
     -- monad operation tests
     testCase "abort" $
-      runComp (abort (EBadArg "this is a test")) []
+      runComp (do
+        abort (EBadArg "this is a test")) []
         @?= (Left (EBadArg "this is a test"),[]),
     testCase "look an existing value" $
       runComp (look "x") [("x",(IntVal 5))]
@@ -133,10 +122,10 @@ interpreterTests = testGroup "Tests for the boa interpreter"
       operate Less (IntVal 5) (NoneVal)
         @?= Left "invalid value type for operation",
     testCase "operate greater true" $
-      operate Less (IntVal 6) (IntVal 5)
+      operate Greater (IntVal 6) (IntVal 5)
         @?= Right TrueVal,
     testCase "operate greater false" $
-      operate Less (IntVal 6) (IntVal 8)
+      operate Greater (IntVal 6) (IntVal 8)
         @?= Right FalseVal,
     testCase "operate greater wrong value type" $
       operate Greater (IntVal 5) (NoneVal)
@@ -163,7 +152,7 @@ interpreterTests = testGroup "Tests for the boa interpreter"
         @?= (Right (ListVal []),[]),
     testCase "range, 3 args, n3 < 0" $
       runComp (apply "range" [IntVal 5,IntVal 1,IntVal (-2)]) []
-        @?= (Right (ListVal [IntVal 3,IntVal 1]),[]),     
+        @?= (Right (ListVal [IntVal 5,IntVal 3]),[]),     
     testCase "range, 3 args, n3 < 0, n1 < n2" $
       runComp (apply "range" [IntVal 1,IntVal 2,IntVal (-2)]) []
         @?= (Right (ListVal []),[]),
@@ -184,7 +173,7 @@ interpreterTests = testGroup "Tests for the boa interpreter"
         @?= (Left (EBadArg "incorrect list size or value types for range function"),[]),
     testCase "range, 1 arg" $
       runComp (apply "range" [IntVal 3]) []
-        @?= (Right (ListVal [IntVal 1,IntVal 2]),[]),     
+        @?= (Right (ListVal [IntVal 0,IntVal 1,IntVal 2]),[]),     
     testCase "range, 1 arg, incorrect value type" $
       runComp (apply "range" [TrueVal]) []
         @?= (Left (EBadArg "incorrect list size or value types for range function"),[]),
@@ -198,7 +187,7 @@ interpreterTests = testGroup "Tests for the boa interpreter"
         @?= (Right NoneVal,["string 1 string 2"]),
     testCase "print listval" $
       runComp (apply "print" [ListVal [StringVal "string", IntVal 0]]) []
-        @?= (Right NoneVal,["string 0"]),
+        @?= (Right NoneVal,["[string, 0]"]),
     testCase "print nested listval" $
       runComp (apply "print" [ListVal [ListVal [IntVal 1], ListVal [IntVal 2]]]) []
         @?= (Right NoneVal,["[[1], [2]]"]),
@@ -252,7 +241,7 @@ interpreterTests = testGroup "Tests for the boa interpreter"
     testCase "eval with list runerror left to right" $ 
       runComp (eval (List [Var "x",Var "y"])) []
         @?= (Left (EBadVar "x"),[]),
-    --TODO: compr
+    --TODO: compr tests
 
     -- exec tests
     testCase "exec sdef" $ 
@@ -266,11 +255,29 @@ interpreterTests = testGroup "Tests for the boa interpreter"
         @?= (Right (),["Hello"]),
     testCase "exec sdef + sexp + output" $ 
       runComp (exec [SDef "x" (Const (StringVal "Hello")), SExp (Call "print" [Var "x"])]) []
-        @?= (Right (),[]),
+        @?= (Right (),["Hello"]),
     testCase "exec runerror" $ 
       runComp (exec [SExp (Var "x")]) []
         @?= (Left (EBadVar "x"),[]),
-    --TODO: execute tests
+
+    -- execute tests
+    testCase "execute sdef" $ 
+      execute [SDef "x" (Const (IntVal 1))]
+        @?= ([], Nothing),
+    testCase "execute sexp" $ 
+      execute [SExp (Const (IntVal 1))]
+        @?= ([], Nothing),
+    testCase "execute output" $
+      execute [SExp (Call "print" [Const (StringVal "Hello")])]
+        @?= (["Hello"], Nothing),
+    testCase "execute sdef + sexp + output" $ 
+      execute [SDef "x" (Const (StringVal "Hello")), SExp (Call "print" [Var "x"])]
+        @?= (["Hello"], Nothing),
+    testCase "execute runerror" $ 
+      execute [SExp (Var "x")]
+        @?= ([], Just (EBadVar "x")),
+    
+    -- example ast tests
     testCase "execute misc.ast from handout" $
       do 
         pgm <- read <$> readFile "examples/misc.ast"

@@ -9,13 +9,13 @@
 # YOUR ANSWERS WILL NOT AFFECT YOUR ASSIGNMENT GRADE.
 #
 Assignment: 2 # do not modify
-Installation: 0m # normally covered under Assignment 1; fill in otherwise
+Installation: 2 h # one of us had issues with running stack test
 Reading: 5 h
 Lectures: 4 h
 Exploration: 2 h
 Warmup: 4 h
 Development: 12 h
-Tests: 3 h
+Tests: 5 h
 Report: 2 h
 Other: 0 h
 # Thanks!
