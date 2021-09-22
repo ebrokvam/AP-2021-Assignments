@@ -105,7 +105,7 @@ operate Less (IntVal e1) (IntVal e2) = if e1 < e2 then Right TrueVal else Right 
 operate Greater (IntVal e1) (IntVal e2) = if e1 > e2 then Right TrueVal else Right FalseVal
 -- has to compare with Eq, hence recursively comparing each element
 operate In _ (ListVal []) = Right FalseVal
-operate In e1 (ListVal (x:xs)) = if (operate Eq e1 x) == Right TrueVal then Right TrueVal else operate In e1 (ListVal xs)
+operate In e1 (ListVal (x:xs)) = if operate Eq e1 x == Right TrueVal then Right TrueVal else operate In e1 (ListVal xs)
 operate _ _ _ = Left "invalid value type for operation"
 
 
@@ -119,7 +119,6 @@ apply :: FName -> [Value] -> Comp Value
 apply "range" vs = compRange vs
 apply "print" vs = compPrint vs
 apply f _ = abort (EBadFun f)
-
 
 ------ Main functions of interpreter ------
 
@@ -147,30 +146,34 @@ eval (Call f en) =
   apply f res
 eval (List en) = 
   do
-  res <- (mapM eval en)
+  res <- mapM eval en
   return (ListVal res)
+
+
+-- WHAT WE TRIED TO DO FOR COMPR
+
 -- eval (Compr _ [CCFor x e]) = 
 --   case eval e of 
---     (ListVal res) -> withBinding x res --wtfffff
---     _ -> abort (EBadArg "I am so goddamn confused") --TODO: don't leave this message
+--     (ListVal res) -> withBinding x res
+--     _ -> abort (EBadArg "what")
 -- eval (Compr _ [CCIf e]) = 
 --   if truthy (eval e) 
---     then abort (EBadArg "I am so goddamn confused")
---     else --TODO: don't leave this message
-eval (Compr e0 (cc:ccs)) = 
-  case cc of
-    (CCFor x e) -> 
-      do
-      res <- eval e
-      case res of
-        (ListVal res) -> withBinding x (ListVal res) (eval (Compr e0 ccs))
-        _ -> abort (EBadArg "I am so goddamn confused") --TODO: don't leave this message
-    (CCIf e) ->
-      do
-      res <- eval e
-      if truthy res
-        then abort (EBadArg "I am so goddamn confused")
-        else (eval (Compr e0 ccs))
+--     then abort (EBadArg "failed guard")
+--     else
+-- eval (Compr e0 (cc:ccs)) = 
+--   case cc of
+--     (CCFor x e) -> 
+--       do
+--       res <- eval e
+--       case res of
+--         (ListVal res) -> withBinding x (ListVal res) (eval (Compr e0 ccs))
+--         _ -> abort (EBadArg "what")
+--     (CCIf e) ->
+--       do
+--       res <- eval e
+--       if truthy res
+--         then abort (EBadArg "failed guard")
+--         else (eval (Compr e0 ccs))
 
 
 {-
@@ -190,11 +193,11 @@ exec (sm:sms) =
     (SDef x e) -> 
       do
       res <- eval e
-      withBinding x (res) (exec sms)
+      withBinding x res (exec sms)
     (SExp e) ->
       do
       _res <- eval e
-      (exec sms)
+      exec sms
 
 {-
 execute p explicitly returns the list of output lines, and the
@@ -202,18 +205,11 @@ error message (if relevant) resulting from executing p in the
 initial environment, which contains no variable bindings
 -}
 execute :: Program -> ([String], Maybe RunError)
--- execute (sm:sms) =
---   \r ->
---   case sm of
---     (SDef x e) ->
---       do
---       res <- eval e
---       (_, s) runComp (execute sms) r
---       case res of
---         (Left e) -> (s, Just e)
---         (Right _) -> (s, Nothing)
---     (SExp e) ->
-execute = undefined
+execute p = 
+  let (u,v) = runComp (exec p) [] in 
+    case u of 
+      Right _ -> (v, Nothing)
+      Left err -> (v, Just err)
 
 
 
@@ -226,7 +222,7 @@ compRange computes the range as foretold by the assignment text
 compRange :: [Value] -> Comp Value
 compRange vs =
   case vs of
-    [(IntVal start), (IntVal end), (IntVal stepSize)] ->
+    [IntVal start, IntVal end, IntVal stepSize] ->
       if stepSize == 0
         then abort (EBadArg "step size cannot be zero in range function")
         else if start < end && stepSize > 0
@@ -234,11 +230,11 @@ compRange vs =
           else if start > end && stepSize < 0
             then return (ListVal (map IntVal [start,(start+stepSize)..(end+1)]))
             else return (ListVal [])
-    [(IntVal start), (IntVal end)] ->
+    [IntVal start, IntVal end] ->
       if start < end
         then return (ListVal (map IntVal [start..end-1]))
         else return (ListVal (map IntVal [start..end+1]))
-    [(IntVal end)] ->
+    [IntVal end] ->
       return (ListVal (map IntVal [0..(end-1)]))
     _ ->
       abort (EBadArg "incorrect list size or value types for range function")
