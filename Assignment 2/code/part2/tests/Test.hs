@@ -8,16 +8,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain $ localOption (mkTimeout 1000000) monadTests
-                  $ localOption (mkTimeout 1000000) monadOperationsTests
-                  $ localOption (mkTimeout 1000000) truthyTests
-                  $ localOption (mkTimeout 1000000) operateTests
-                  $ localOption (mkTimeout 1000000) rangeTests
-                  -- $ localOption (mkTimeout 1000000) printTests
-                  $ localOption (mkTimeout 1000000) evalTests
-                  -- $ localOption (mkTimeout 1000000) execTests
-                  -- $ localOption (mkTimeout 1000000) executeTests
-                  $ localOption (mkTimeout 1000000) exampleAstTests
+main = defaultMain $ localOption (mkTimeout 1000000) interpreterTests
 
   -- [testCase "crash test" $
   --   execute [SExp (Call "print" [Oper Plus (Const (IntVal 2))
@@ -30,18 +21,15 @@ main = defaultMain $ localOption (mkTimeout 1000000) monadTests
   --       execute pgm @?= (lines out, Nothing)]
 
 -- comp monad tests
-monadTests :: TestTree
-monadTests = testGroup "monad tests"
-  [testCase "return" $
-      runComp (return ()) []
-        @?= (Right (),[])
+interpreterTests :: TestTree
+interpreterTests = testGroup "Tests for the boa interpreter"
+    [testCase "return" $
+        runComp (return ()) []
+          @?= (Right (),[]),
     -- TODO: more here
-  ]
 
--- monad operations tests
-monadOperationsTests :: TestTree
-monadOperationsTests = testGroup "monad operations tests"
-    [testCase "abort" $
+    -- monad operation tests
+    testCase "abort" $
       runComp (abort (EBadArg "this is a test")) []
         @?= (Left (EBadArg "this is a test"),[]),
     testCase "look an existing value" $
@@ -61,11 +49,10 @@ monadOperationsTests = testGroup "monad operations tests"
         _ <- output "test"
         _ <- output "test"
         return ()) []
-        @?= (Right (),["test", "test"])]
+        @?= (Right (),["test", "test"]),
 
-truthyTests :: TestTree
-truthyTests = testGroup "truthy tests"
-    [testCase "truthy none" $
+    -- truthy tests
+    testCase "truthy none" $
       truthy NoneVal
         @?= False,
     testCase "truthy false" $
@@ -82,55 +69,54 @@ truthyTests = testGroup "truthy tests"
         @?= False,
     testCase "truthy true" $
       truthy (TrueVal)
-        @?= true,
+        @?= True,
     testCase "truthy 1" $
       truthy (IntVal 1)
-        @?= true,
+        @?= True,
     testCase "truthy string" $
       truthy (StringVal "yes")
-        @?= true,
+        @?= True,
     testCase "truthy list" $
       truthy (ListVal (IntVal 1))
-        @?= true]
+        @?= True,
 
-operateTests :: TestTree
-operateTests = testGroup "operate tests"
-    [testCase "operate plus" $
+    -- operate tests
+    testCase "operate plus" $
       operate Plus (IntVal 1) (IntVal 1)
         @?= Right (IntVal 2),
     testCase "operate plus wrong value type" $
       operate Plus (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate minus" $
       operate Minus (IntVal 1) (IntVal 1)
         @?= Right (IntVal 0),
     testCase "operate minus wrong value type" $
       operate Minus (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate times" $
       operate Times (IntVal 3) (IntVal 1)
         @?= Right (IntVal 3),
     testCase "operate times wrong value type" $
       operate Times (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate div" $
       operate Div (IntVal 6) (IntVal 2)
         @?= Right (IntVal 3),
     testCase "operate div zero" $
       operate Div (IntVal 1) (IntVal 0)
-        @?= Left _,
+        @?= Left "attempted division by zero",
     testCase "operate div wrong value type" $
       operate Div (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate mod" $
       operate Mod (IntVal 7) (IntVal 2)
         @?= Right (IntVal 1),
     testCase "operate mod zero" $
       operate Mod (IntVal 1) (IntVal 0)
-        @?= Left _,
+        @?= Left "attempted division by zero",
     testCase "operate mod wrong value type" $
       operate Mod (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate eq true" $
       operate Eq (IntVal 6) (IntVal 6)
         @?= Right TrueVal,
@@ -145,7 +131,7 @@ operateTests = testGroup "operate tests"
         @?= Right FalseVal,
     testCase "operate less wrong value type" $
       operate Less (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate greater true" $
       operate Less (IntVal 6) (IntVal 5)
         @?= Right TrueVal,
@@ -154,7 +140,7 @@ operateTests = testGroup "operate tests"
         @?= Right FalseVal,
     testCase "operate greater wrong value type" $
       operate Greater (IntVal 5) (NoneVal)
-        @?= Left _,
+        @?= Left "invalid value type for operation",
     testCase "operate in true" $
       operate In (IntVal 5) (ListVal [(IntVal 5)])
         @?= Right TrueVal,
@@ -166,11 +152,10 @@ operateTests = testGroup "operate tests"
         @?= Right FalseVal,
     testCase "operate in wrong value type" $
       operate In (IntVal 5) (NoneVal)
-        @?= Left _]
-
-rangeTests :: TestTree
-rangeTests = testGroup "range tests"
-    [testCase "range, 3 args, n3 > 0" $
+        @?= Left "invalid value type for operation",
+    
+    -- range tests
+    testCase "range, 3 args, n3 > 0" $
       runComp (apply "range" [IntVal 1,IntVal 5,IntVal 2]) []
         @?= (Right (ListVal [IntVal 1,IntVal 3]),[]),     
     testCase "range, 3 args, n3 > 0, n1 > n2" $
@@ -184,10 +169,10 @@ rangeTests = testGroup "range tests"
         @?= (Right (ListVal []),[]),
     testCase "range, 3 args, n3 == 0" $
       runComp (apply "range" [IntVal 1,IntVal 5,IntVal 0]) []
-        @?= (Left (EBadArg _),[]),
+        @?= (Left (EBadArg "step size cannot be zero in range function"),[]),
     testCase "range, 3 args, incorrect value type" $
-      runComp (apply "range" [IntVal 1,TrueVal,IntVal 0]) []
-        @?= (Left (EBadArg _),[]),
+      runComp (apply "range" [IntVal 1,TrueVal,IntVal 1]) []
+        @?= (Left (EBadArg "incorrect list size or value types for range function"),[]),
     testCase "range, 2 args, n1 < n2" $
       runComp (apply "range" [IntVal 1,IntVal 3]) []
         @?= (Right (ListVal [IntVal 1,IntVal 2]),[]),     
@@ -196,17 +181,16 @@ rangeTests = testGroup "range tests"
         @?= (Right (ListVal []),[]),     
     testCase "range, 2 args, incorrect value type" $
       runComp (apply "range" [IntVal 1,TrueVal]) []
-        @?= (Left (EBadArg _),[]),
+        @?= (Left (EBadArg "incorrect list size or value types for range function"),[]),
     testCase "range, 1 arg" $
       runComp (apply "range" [IntVal 3]) []
         @?= (Right (ListVal [IntVal 1,IntVal 2]),[]),     
     testCase "range, 1 arg, incorrect value type" $
-      runComp (apply "range" [IntVal 1,TrueVal]) []
-        @?= (Left (EBadArg _),[])]
-
-printTests :: TestTree
-printTests = testGroup "print tests"
-    [testCase "print simple values" $
+      runComp (apply "range" [TrueVal]) []
+        @?= (Left (EBadArg "incorrect list size or value types for range function"),[]),
+    
+    -- print tests
+    testCase "print simple values" $
       runComp (apply "print" [NoneVal, TrueVal, FalseVal, IntVal 0]) []
         @?= (Right NoneVal,["None True False 0"]),
     testCase "print two strings" $
@@ -223,11 +207,10 @@ printTests = testGroup "print tests"
         @?= (Right NoneVal,[""]),
     testCase "print complex" $
       runComp (apply "print" [IntVal 42, StringVal "foo", ListVal [TrueVal, ListVal []], IntVal (-1)]) []
-        @?= (Right NoneVal,["42 foo [True, []] -1"])]
-
-evalTests :: TestTree
-evalTests = testGroup "eval tests"
-    [testCase "eval with const" $
+        @?= (Right NoneVal,["42 foo [True, []] -1"]),
+      
+    -- eval tests
+    testCase "eval with const" $
       runComp (eval (Const (IntVal 5))) []
         @?= (Right (IntVal 5),[]),
     testCase "eval with var" $
@@ -238,10 +221,10 @@ evalTests = testGroup "eval tests"
         @?= (Right (IntVal 2),[]),
     testCase "eval with oper runerror" $ 
       runComp (eval (Oper Div (Const (IntVal 1))(Var "x"))) [("X", NoneVal)]
-        @?= (Left (EBadVar _),[]),
+        @?= (Left (EBadVar "x"),[]),
     testCase "eval with oper propagated runerror" $ 
       runComp (eval (Oper Div (Const (IntVal 1))(Var "x"))) []
-        @?= (Left (EBadVar _),[]),
+        @?= (Left (EBadVar "x"),[]),
     testCase "eval with not (false)" $ -- truthy helper function already extensively tested
       runComp (eval (Not (Const (IntVal 0)))) []
         @?= (Right TrueVal,[]),
@@ -249,17 +232,17 @@ evalTests = testGroup "eval tests"
       runComp (eval (Not (Const (IntVal 1)))) []
         @?= (Right FalseVal,[]),
     testCase "eval with call range" $ -- range function already extensively tested
-      runComp (eval (Call "range" [IntVal 1,IntVal 5,IntVal 2])) []
+      runComp (eval (Call "range" [Const (IntVal 1), Const (IntVal 5), Const (IntVal 2)])) []
         @?= (Right (ListVal [IntVal 1,IntVal 3]),[]),     
     testCase "eval with call range error" $
-      runComp (eval (Call "range" [IntVal 1,IntVal 5,NoneVal])) []
-        @?= (Left (EBadArg _),[]),
+      runComp (eval (Call "range" [Const (IntVal 1), Const (IntVal 5), Const NoneVal])) []
+        @?= (Left (EBadArg "incorrect list size or value types for range function"),[]),
     testCase "eval with call print" $ -- print function already extensively tests
-      runComp (eval (Call "print" [IntVal 42, StringVal "foo", ListVal [TrueVal, ListVal []], IntVal (-1)])) []
+      runComp (eval (Call "print" [Const (IntVal 42), Const (StringVal "foo"), Const (ListVal [TrueVal, ListVal []]), Const (IntVal (-1))])) []
         @?= (Right NoneVal,["42 foo [True, []] -1"]),   
     testCase "eval with call bad function" $
       runComp (eval (Call "foo" [IntVal 0])) []
-        @?= (Left (EBadFun _),[]),
+        @?= (Left (EBadFun "foo"),[]),
     testCase "eval with list empty" $ 
       runComp (eval (List [])) []
         @?= (Right (List []),[]),
@@ -268,14 +251,11 @@ evalTests = testGroup "eval tests"
         @?= (Left (EBadVar "x"),[]),
     testCase "eval with list runerror left to right" $ 
       runComp (eval (List [Var "x",Var "y"])) []
-        @?= (Left (EBadVar "x"),[])
+        @?= (Left (EBadVar "x"),[]),
     --TODO: compr
-    ]
 
---TODO: exec tests
-execTests :: TestTree
-execTests = testGroup "exec tests"
-    [testCase "exec sdef" $ 
+    -- exec tests
+    testCase "exec sdef" $ 
       runComp (exec [SDef "x" (Const (IntVal 1))]) []
         @?= (Right (),[]),
     testCase "exec sexp" $ 
@@ -289,13 +269,9 @@ execTests = testGroup "exec tests"
         @?= (Right (),[]),
     testCase "exec runerror" $ 
       runComp (exec [SExp (Var "x")]) []
-        @?= (Left (EBadVar _),[])]
-
---TODO: execute tests
-
-exampleAstTests :: TestTree
-exampleAstTests = testGroup "example ast tests"
-    [testCase "execute misc.ast from handout" $
+        @?= (Left (EBadVar "x"),[]),
+    --TODO: execute tests
+    testCase "execute misc.ast from handout" $
       do 
         pgm <- read <$> readFile "examples/misc.ast"
         out <- readFile "examples/misc.out"
