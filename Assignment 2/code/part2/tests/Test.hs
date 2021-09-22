@@ -273,6 +273,23 @@ evalTests = testGroup "eval tests"
     ]
 
 --TODO: exec tests
+execTests :: TestTree
+execTests = testGroup "exec tests"
+    [testCase "exec sdef" $ 
+      runComp (exec [SDef "x" (Const (IntVal 1))]) []
+        @?= (Right (),[]),
+    testCase "exec sexp" $ 
+      runComp (exec [SExp (Const (IntVal 1))]) []
+        @?= (Right (),[]),
+    testCase "exec output" $
+      runComp (exec [SExp (Call "print" [Const (StringVal "Hello")])]) []
+        @?= (Right (),["Hello"]),
+    testCase "exec sdef + sexp + output" $ 
+      runComp (exec [SDef "x" (Const (StringVal "Hello")), SExp (Call "print" [Var "x"])]) []
+        @?= (Right (),[]),
+    testCase "exec runerror" $ 
+      runComp (exec [SExp (Var "x")]) []
+        @?= (Left (EBadVar _),[])]
 
 --TODO: execute tests
 

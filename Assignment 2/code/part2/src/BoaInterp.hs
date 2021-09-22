@@ -77,8 +77,9 @@ apply "range" vs = compRange vs
 apply "print" vs = compPrint vs
 apply f _ = abort (EBadFun f)
 
+-- aux functions for apply
 compRange :: [Value] -> Comp Value
-compRange vs = --TODO: remove end element
+compRange vs =
   case vs of
     [(IntVal start), (IntVal end), (IntVal stepSize)] ->
       if stepSize == 0
@@ -182,14 +183,7 @@ eval (Compr e0 (cc:ccs)) =
         else (eval (Compr e0 ccs))
 
 exec :: Program -> Comp ()
-exec [SDef _ e] =
-  do
-  _res <- eval e
-  return ()
-exec [SExp e] =
-  do
-  _res <- eval e
-  return ()
+exec [] = return ()
 exec (sm:sms) = 
   case sm of
     (SDef x e) -> 
