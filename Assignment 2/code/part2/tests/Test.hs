@@ -40,7 +40,7 @@ interpreterTests = testGroup "Tests for the boa interpreter"
         @?= (Left (EBadVar "x"),[]),
     testCase "look after withBinding" $
       runComp (withBinding "x" (IntVal 5) (look "x")) []
-        @?= (Right (IntVal 5),[])
+        @?= (Right (IntVal 5),[]),
     testCase "output" $
       runComp (output "test") []
         @?= (Right (),["test"]),
@@ -77,7 +77,7 @@ interpreterTests = testGroup "Tests for the boa interpreter"
       truthy (StringVal "yes")
         @?= True,
     testCase "truthy list" $
-      truthy (ListVal (IntVal 1))
+      truthy (ListVal [IntVal 1])
         @?= True,
 
     -- operate tests
@@ -241,11 +241,11 @@ interpreterTests = testGroup "Tests for the boa interpreter"
       runComp (eval (Call "print" [Const (IntVal 42), Const (StringVal "foo"), Const (ListVal [TrueVal, ListVal []]), Const (IntVal (-1))])) []
         @?= (Right NoneVal,["42 foo [True, []] -1"]),   
     testCase "eval with call bad function" $
-      runComp (eval (Call "foo" [IntVal 0])) []
+      runComp (eval (Call "foo" [Const (IntVal 0)])) []
         @?= (Left (EBadFun "foo"),[]),
     testCase "eval with list empty" $ 
       runComp (eval (List [])) []
-        @?= (Right (List []),[]),
+        @?= (Right (ListVal []),[]),
     testCase "eval with list runerror" $ 
       runComp (eval (List [Var "x"])) []
         @?= (Left (EBadVar "x"),[]),
