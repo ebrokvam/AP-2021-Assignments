@@ -33,23 +33,48 @@ instance Functor Comp where
 instance Applicative Comp where
   pure = return; (<*>) = ap
 
--- Operations of the monad
+------ Operations of the monad ------
+
+{- 
+abort re is used for signaling the runtime error re 
+-}
 abort :: RunError -> Comp a
 abort re = Comp $ \_r -> (Left re, [])
 
+{- 
+look x returns the current binding of the variable x 
+(or signals an EBadVar x error if x is unbound) 
+-}
 look :: VName -> Comp Value
 look x = Comp $ \r -> 
   case lookup x r of
     Nothing -> runComp (abort (EBadVar x)) r
     Just value -> (Right value, [])
 
+{- 
+withBinding x v m runs the computation m with x 
+bound to v, in addition to any other current bindings
+-}
 withBinding :: VName -> Value -> Comp a -> Comp a
 withBinding x v m = Comp $ \r -> runComp m ((x, v):r)
 
+{- 
+output s appends the line s to the output list. 
+s should not include a trailing newline character 
+(unless the line arises from printing a string value 
+that itself contains an embedded newline)
+-}
 output :: String -> Comp ()
 output s = Comp $ \_r -> (Right (), [s])
 
--- Helper functions for interpreter
+
+
+------ Helper functions for interpreter ------
+
+{- 
+truthy v simply determines whether the value v 
+represents truth or falsehood, as previously specified
+-}
 truthy :: Value -> Bool
 truthy NoneVal = False
 truthy FalseVal = False
@@ -58,6 +83,17 @@ truthy (StringVal "") = False
 truthy (ListVal []) = False
 truthy _ = True
 
+
+{- 
+operate o v1 v2 applies the operator o to the arguments 
+v1 and v2, returning either the resulting value, or an error 
+message if one or both arguments are inappropriate for the 
+operation
+
+operate has changed visual from last year; only In was a true
+copy-paste from last year w.r.g. to the element search...
+much simpler than what I was about to venture into -.-
+-}
 operate :: Op -> Value -> Value -> Either String Value
 operate Plus (IntVal e1) (IntVal e2) = Right (IntVal (e1 + e2))
 operate Minus (IntVal e1) (IntVal e2) = Right (IntVal (e1 - e2))
@@ -72,71 +108,25 @@ operate In _ (ListVal []) = Right FalseVal
 operate In e1 (ListVal (x:xs)) = if (operate Eq e1 x) == Right TrueVal then Right TrueVal else operate In e1 (ListVal xs)
 operate _ _ _ = Left "invalid value type for operation"
 
+
+{-
+apply f [v1,...,vn] applies the built-in function f to the 
+(already evaluated) argument tuple v1, ..., vn, possibly 
+signaling an error if f is not a valid function name (EBadFun), 
+or if the arguments are not valid for the function (EBadArg)
+-}
 apply :: FName -> [Value] -> Comp Value
 apply "range" vs = compRange vs
 apply "print" vs = compPrint vs
 apply f _ = abort (EBadFun f)
 
--- aux functions for apply
-compRange :: [Value] -> Comp Value
-compRange vs =
-  case vs of
-    [(IntVal start), (IntVal end), (IntVal stepSize)] ->
-      if stepSize == 0
-        then abort (EBadArg "step size cannot be zero in range function")
-        else if start < end && stepSize > 0
-          then return (ListVal (map IntVal [start,(start+stepSize)..(end-1)]))
-          else if start > end && stepSize < 0
-            then return (ListVal (map IntVal [start,(start+stepSize)..(end+1)]))
-            else return (ListVal [])
-    [(IntVal start), (IntVal end)] ->
-      if start < end
-        then return (ListVal (map IntVal [start..end-1]))
-        else return (ListVal (map IntVal [start..end+1]))
-    [(IntVal end)] ->
-      return (ListVal (map IntVal [0..(end-1)]))
-    _ ->
-      abort (EBadArg "incorrect list size or value types for range function")
 
-compPrint :: [Value] -> Comp Value
-compPrint vs = 
-  do
-  output (convertString vs)
-  return NoneVal
+------ Main functions of interpreter ------
 
-convertString :: [Value] -> String
-convertString [] = ""
-convertString (v:vs)=
-  case v of
-    NoneVal -> "None" ++ getSpace (v:vs) ++ convertString vs
-    TrueVal -> "True" ++ getSpace (v:vs) ++ convertString vs
-    FalseVal -> "False" ++ getSpace (v:vs) ++ convertString vs
-    IntVal x -> show x ++ getSpace (v:vs) ++ convertString vs
-    StringVal s -> s ++ getSpace (v:vs) ++ convertString vs
-    ListVal ls -> convertList ls ++ getSpace (v:vs) ++ convertString vs
-
-getSpace :: [Value] -> String
-getSpace vs = if length vs == 1 then "" else " "
-
-convertList :: [Value] -> String
-convertList vs = "[" ++ convertListElement vs ++ "]"
-
--- same as convertString but with getComma
-convertListElement :: [Value] -> String
-convertListElement [] = ""
-convertListElement (v:vs) =
-  case v of
-    NoneVal -> "None" ++ getComma (v:vs) ++ convertListElement vs
-    TrueVal -> "True" ++ getComma (v:vs) ++ convertListElement vs
-    FalseVal -> "False" ++ getComma (v:vs) ++ convertListElement vs
-    IntVal x -> show x ++ getComma (v:vs) ++ convertListElement vs
-    StringVal s -> s ++ getComma (v:vs) ++ convertListElement vs
-    ListVal ls -> convertList ls ++ getComma (v:vs) ++ convertListElement vs
-
-getComma :: [Value] -> String
-getComma vs = if length vs == 1 then "" else ", "
-
--- Main functions of interpreter
+{-
+eval e is the computation that evaluates the expression e 
+in the current environment and returns its value
+-}
 eval :: Exp -> Comp Value
 eval (Const v) = return v
 eval (Var x) = look x
@@ -182,6 +172,17 @@ eval (Compr e0 (cc:ccs)) =
         then abort (EBadArg "I am so goddamn confused")
         else (eval (Compr e0 ccs))
 
+
+{-
+exec p is the computation arising from executing the program 
+(or program fragment) p, with no nominal return value, but 
+with any side effects in p still taking place in the computation
+
+SDef x e evaluates e to a value, and binds x to that value for 
+the remaining statements in the sequence
+
+SExp e just evaluates e and discards the result value
+-}
 exec :: Program -> Comp ()
 exec [] = return ()
 exec (sm:sms) = 
@@ -195,6 +196,11 @@ exec (sm:sms) =
       _res <- eval e
       (exec sms)
 
+{-
+execute p explicitly returns the list of output lines, and the
+error message (if relevant) resulting from executing p in the 
+initial environment, which contains no variable bindings
+-}
 execute :: Program -> ([String], Maybe RunError)
 -- execute (sm:sms) =
 --   \r ->
@@ -208,3 +214,96 @@ execute :: Program -> ([String], Maybe RunError)
 --         (Right _) -> (s, Nothing)
 --     (SExp e) ->
 execute = undefined
+
+
+
+------ The two built-in functions of BOA + auxillary functions ------
+
+-- aux functions for apply
+{-
+compRange computes the range as foretold by the assignment text
+-}
+compRange :: [Value] -> Comp Value
+compRange vs =
+  case vs of
+    [(IntVal start), (IntVal end), (IntVal stepSize)] ->
+      if stepSize == 0
+        then abort (EBadArg "step size cannot be zero in range function")
+        else if start < end && stepSize > 0
+          then return (ListVal (map IntVal [start,(start+stepSize)..(end-1)]))
+          else if start > end && stepSize < 0
+            then return (ListVal (map IntVal [start,(start+stepSize)..(end+1)]))
+            else return (ListVal [])
+    [(IntVal start), (IntVal end)] ->
+      if start < end
+        then return (ListVal (map IntVal [start..end-1]))
+        else return (ListVal (map IntVal [start..end+1]))
+    [(IntVal end)] ->
+      return (ListVal (map IntVal [0..(end-1)]))
+    _ ->
+      abort (EBadArg "incorrect list size or value types for range function")
+
+
+{-
+compPrint computes the range as foretold by the assignment text
+uses following functions to function properly
+ - convertString
+ - getSpace
+ - convertList
+ - convertListElement
+ - getComma
+
+-}
+compPrint :: [Value] -> Comp Value
+compPrint vs = 
+  do
+  output (convertString vs)
+  return NoneVal
+
+{-
+takes the values given by compPrint and prints the value;
+main print function calls on getSpace to, well, get space
+and convertList
+-}
+convertString :: [Value] -> String
+convertString [] = ""
+convertString (v:vs)=
+  case v of
+    NoneVal -> "None" ++ getSpace (v:vs) ++ convertString vs
+    TrueVal -> "True" ++ getSpace (v:vs) ++ convertString vs
+    FalseVal -> "False" ++ getSpace (v:vs) ++ convertString vs
+    IntVal x -> show x ++ getSpace (v:vs) ++ convertString vs
+    StringVal s -> s ++ getSpace (v:vs) ++ convertString vs
+    ListVal ls -> convertList ls ++ getSpace (v:vs) ++ convertString vs
+
+{-
+returns either a space or none based on the length of the
+given value
+-}
+getSpace :: [Value] -> String
+getSpace vs = if length vs == 1 then "" else " "
+
+{-
+returns "[" "]" when evoked
+-}
+convertList :: [Value] -> String
+convertList vs = "[" ++ convertListElement vs ++ "]"
+
+
+-- same as convertString but with getComma
+convertListElement :: [Value] -> String
+convertListElement [] = ""
+convertListElement (v:vs) =
+  case v of
+    NoneVal -> "None" ++ getComma (v:vs) ++ convertListElement vs
+    TrueVal -> "True" ++ getComma (v:vs) ++ convertListElement vs
+    FalseVal -> "False" ++ getComma (v:vs) ++ convertListElement vs
+    IntVal x -> show x ++ getComma (v:vs) ++ convertListElement vs
+    StringVal s -> s ++ getComma (v:vs) ++ convertListElement vs
+    ListVal ls -> convertList ls ++ getComma (v:vs) ++ convertListElement vs
+
+{-
+same semantic as getSpace here it returns a ","
+ -}
+getComma :: [Value] -> String
+getComma vs = if length vs == 1 then "" else ", "
