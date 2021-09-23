@@ -51,6 +51,7 @@ expr = undefined
 expr' :: Exp -> Parser Exp
 expr' = undefined
 
+term' :: Parser Exp
 
-term :: Parser Exp
+term :: Exp -> Parser Exp
 term = undefined 
