@@ -9,7 +9,7 @@ module WarmupParsec where
 
 -- Rewritten grammar, without left-recursion: copy-paste from readP
 --  E    ::= Eopt T'
---  E' ::= "+" E' T' | "-" E' T' | epsilon
+--  E'   ::= "+" E' T' | "-" E' T' | epsilon
 --  T'   ::= T | "-" T
 --  T    ::= num | "(" E ")"
 
@@ -23,7 +23,18 @@ data Exp = Num Int | Negate Exp | Add Exp Exp
 
 -- Optional: if not attempted, leave as undefined
 parseString :: String -> Either ParseError Exp
-parseString = undefined
+parseString s = 
+  case runParser s () of 
+    
+
+
+
+
+
+-- >  parseFromFile p fname
+-- >    = do{ input <- readFile fname
+-- >        ; return (runParser p () fname input)
+-- >        }
 
 
 lexeme :: Parser a -> Parser a
@@ -36,19 +47,19 @@ num :: Parser Int
 num = undefined
 
 addOp :: Parser (Exp -> Exp -> Exp)
-addOp :: undefined
+addOp = undefined
 
 negOp :: Parser (Exp -> Exp -> Exp)
-negOp :: undefined
-
+negOp = undefined
 
 expr :: Parser Exp
 expr = undefined
 
-
 expr' :: Exp -> Parser Exp
 expr' = undefined
 
+term' :: Parser Exp
+term' = undefined
 
-term :: Parser Exp
+term :: Exp -> Parser Exp
 term = undefined 
