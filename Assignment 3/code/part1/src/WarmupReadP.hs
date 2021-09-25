@@ -39,7 +39,8 @@ num :: Parser Int
 num = lexeme $ do n <- many1 (satisfy isDigit); skipSpaces; return $ read n
 
 symbol :: String -> Parser ()
-symbol ps = lexeme $ do _ <- string ps; skipSpaces   -- fra 2021
+symbol ps = lexeme $ do _ <- string ps; skipSpaces   -- how to use <++ or munch?
+-- symbol ps = lexeme $ munch (. (string ps))-- how to use <++ or munch?
 
 addOp :: Parser (Exp -> Exp -> Exp)
 addOp = do symbol "+"; return Add

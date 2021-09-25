@@ -16,7 +16,6 @@ module WarmupParsec where
 import Text.ParserCombinators.Parsec  -- exports a suitable type ParseError
 import Text.ParserCombinators.Parsec.Prim()
 
-type PsrseError = String
 
 data Exp = Num Int | Negate Exp | Add Exp Exp
   deriving (Eq, Show)
@@ -63,5 +62,4 @@ whitespace :: Parser ()
 whitespace = do _ <- space; _ <- newline; _ <- tab; return ()
 
 lexeme :: Parser a -> Parser a
-lexeme p = do a <- p; whitespace; return a
-
+lexeme p = do a <- p; spaces; return a
