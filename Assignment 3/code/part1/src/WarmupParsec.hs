@@ -8,14 +8,14 @@ module WarmupParsec where
 --   tokens may be separated by arbtrary whitespace (spaces, tabs, newlines).
 
 -- Rewritten grammar, without left-recursion: copy-paste from readP
---  E    ::= Eopt T'
---  E'   ::= "+" E' T' | "-" E' T' | epsilon
+--  E    ::= T' E' 
+--  E'   ::= "+" T' E'  | "-" T' E'  | epsilon
 --  T'   ::= T | "-" T
 --  T    ::= num | "(" E ")"
 
 import Text.ParserCombinators.Parsec  -- exports a suitable type ParseError
+import Text.ParserCombinators.Parsec.Prim()
 
-type Parser a = Parsec a
 type PsrseError = String
 
 data Exp = Num Int | Negate Exp | Add Exp Exp
@@ -23,43 +23,45 @@ data Exp = Num Int | Negate Exp | Add Exp Exp
 
 -- Optional: if not attempted, leave as undefined
 parseString :: String -> Either ParseError Exp
-parseString s = 
-  case runParser s () of 
-    
+parseString = parse fullExpr "parse error"
 
 
-
-
-
--- >  parseFromFile p fname
--- >    = do{ input <- readFile fname
--- >        ; return (runParser p () fname input)
--- >        }
-
-
-lexeme :: Parser a -> Parser a
-lexeme = undefined
-
-symbol :: String -> Parser ()
-symbol = undefined 
+fullExpr :: Parser Exp
+fullExpr = do e <- expr; eof; return e
 
 num :: Parser Int
-num = undefined
+-- num = do n <- many1 digit; spaces; return $ read n
+num = lexeme $ do n <- many1 digit; spaces; return $ read n
+
+symbol :: String -> Parser ()
+-- symbol ps = do _ <- try $ string ps; spaces
+symbol ps = lexeme $ do _ <- try $ string ps; spaces
 
 addOp :: Parser (Exp -> Exp -> Exp)
-addOp = undefined
+addOp = do symbol "+"; return Add
 
-negOp :: Parser (Exp -> Exp -> Exp)
-negOp = undefined
+negOp :: Parser (Exp -> Exp)
+negOp = do symbol "-"; return Negate
 
 expr :: Parser Exp
-expr = undefined
+expr = do e <- term'; expr' e 
 
 expr' :: Exp -> Parser Exp
-expr' = undefined
+expr' e' = do add <- addOp; e'' <- term'; expr' (add e' e'') 
+          <|> do neg <- negOp; e'' <- term'; expr' (Add e' (neg e''))
+          <|> return e'
 
 term' :: Parser Exp
-term' = undefined
+term' = term
+        <|> do symbol "-"; Negate <$> term
 
-term :: Exp -> Parser Exp
-term = undefined 
+term :: Parser Exp
+term = Num <$> num
+       <|> do symbol "("; t <- expr; symbol ")"; return t
+
+whitespace :: Parser ()
+whitespace = do _ <- space; _ <- newline; _ <- tab; return ()
+
+lexeme :: Parser a -> Parser a
+lexeme p = do a <- p; whitespace; return a
+
