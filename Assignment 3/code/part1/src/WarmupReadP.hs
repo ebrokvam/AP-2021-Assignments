@@ -9,12 +9,13 @@ module WarmupReadP where
 
 -- Rewritten grammar, without left-recursion:
 --  E    ::= Eopt T'
---  E' ::= "+" E' T' | "-" E' T' | epsilon
+--  E'   ::= "+" E' T' | "-" E' T' | epsilon
 --  T'   ::= T | "-" T
 --  T    ::= num | "(" E ")"
 
 import Text.ParserCombinators.ReadP
 import Control.Applicative ((<|>))
+import Data.Char
   -- may use instead of +++ for easier portability to Parsec
 
 type Parser a = ReadP a   -- may use synomym for easier portability to Parsec
@@ -25,33 +26,45 @@ data Exp = Num Int | Negate Exp | Add Exp Exp
   deriving (Eq, Show)
 
 parseString :: String -> Either ParseError Exp
-parseString = undefined
+parseString s = 
+  case readP_to_S fullExpr s of 
+    [(a,_)] -> Right a
+    _ -> Left "parse error"
 
 
-lexeme :: Parser a -> Parser a
-lexeme = undefined
-
-symbol :: String -> Parser ()
-symbol = undefined 
+fullExpr :: Parser Exp
+fullExpr = do e <- expr; eof; return e
 
 num :: Parser Int
-num = undefined
+num = lexeme $ do n <- many1 (satisfy isDigit); skipSpaces; return $ read n
+
+symbol :: String -> Parser ()
+symbol ps = lexeme $ do _ <- string ps; skipSpaces   -- fra 2021
 
 addOp :: Parser (Exp -> Exp -> Exp)
-addOp :: undefined
+addOp = do symbol "+"; return Add
 
-negOp :: Parser (Exp -> Exp -> Exp)
-negOp :: undefined
-
+negOp :: Parser (Exp -> Exp)
+negOp = do symbol "-"; return Negate
 
 expr :: Parser Exp
-expr = undefined
-
+expr = do e <- term'; expr' e 
 
 expr' :: Exp -> Parser Exp
-expr' = undefined
+expr' e' = do add <- addOp; e'' <- term'; expr' (add e' e'') 
+          <|> do neg <- negOp; e'' <- term'; expr' (Add e' (neg e''))
+          <|> return e'
 
 term' :: Parser Exp
+term' = term
+        <|> do symbol "-"; Negate <$> term
 
-term :: Exp -> Parser Exp
-term = undefined 
+term :: Parser Exp
+term = Num <$> num
+       <|> do symbol "("; t <- expr; symbol ")"; return t
+
+whitespace :: Parser ()
+whitespace = do _ <-  many (satisfy isSpace); return ()
+
+lexeme :: Parser a -> Parser a
+lexeme p = do a <- p; whitespace; return a
