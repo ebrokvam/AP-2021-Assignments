@@ -184,6 +184,9 @@ tests = testGroup "Parser tests" [
       testCase "not 1" $
         parseString "not 1" @?=
           Right [SExp (Not (Const (IntVal 1)))],
+      testCase "not(1)" $
+        parseString "not(1)" @?=
+          Right [SExp (Not (Const (IntVal 1)))],
       testCase "not not 1" $
         parseString "not not 1" @?=
           Right [SExp (Not (Not (Const (IntVal 1))))],
