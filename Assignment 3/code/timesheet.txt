@@ -14,8 +14,8 @@ Reading: 3h
 Lectures: 0h
 Exploration: 1h
 Warmup: 4h
-Development: 0h # not there yet
-Tests: 0h # not there yet
-Report: 0h # not there yet
-Other: 0h # if more than 1h total, please elaborate in comment
+Development: 10h
+Tests: 5h
+Report: 2h
+Other: 0m # if more than 1h total, please elaborate in comment
 # Thanks!
