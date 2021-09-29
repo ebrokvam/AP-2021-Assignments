@@ -57,7 +57,7 @@ expr' = lexeme $ do n <- numConst; return (Const (IntVal n))
     <|> do i <- ident; return (Var i)
     <|> do symbol "("; e <- expr; symbol ")"; return e
     <|> try (do symbol "["; es <- exprz; symbol "]"; return (List es))
-    <|> do symbol "["; e <- expr; fc <- forClause; cs <- clausez; char ']'; return (Compr e (fc:cs))
+    <|> do symbol "["; e <- expr; fc <- forClause; cs <- clausez; symbol "]"; return (Compr e (fc:cs))
 
 op :: Parser Op
 op = lexeme $ do char '+'; return Plus
@@ -123,7 +123,7 @@ getDigits = do char '0'; return "0"
     <|> do lookAhead (noneOf "0"); many1 digit;
 
 stringConst :: Parser String
-stringConst = do s <- manyTill isStringConst (char '\''); return s
+stringConst = do manyTill isStringConst (char '\'')
 
 isStringConst :: Parser Char
 isStringConst = newline

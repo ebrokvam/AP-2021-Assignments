@@ -331,6 +331,12 @@ tests = testGroup "Parser tests" [
       testCase "x#bar" $
         parseString "x#bar" @?=
           Right [SExp (Var "x")],
+      testCase "x#bar\\n" $
+        parseString "x#bar\\n" @?=
+          Right [SExp (Var "x")],
+      testCase "x#\\n" $
+        parseString "x#\\n" @?=
+          Right [SExp (Var "x")],
       testCase "x#\\n=1" $
         parseString "x#\\nbar" @?=
           Right [SDef "x" (Const (IntVal 1))],
