@@ -68,7 +68,7 @@ op = lexeme $ do char '+'; return Plus
     <|> do string "=="; return Eq;
     <|> do char '<'; return Less
     <|> do char '>'; return Greater
-    <|> do string "in"; requiredSpaces; return In
+    <|> do string "in"; many1 space; return In
 
 negOp :: Parser Op
 negOp = lexeme $ do string "!="; return Eq
@@ -77,13 +77,10 @@ negOp = lexeme $ do string "!="; return Eq
     <|> do string "not in"; return In
 
 forClause :: Parser CClause
-forClause = do string "for"; requiredSpaces; i <- ident; string "in"; requiredSpaces; e <- expr; return (CCFor i e)
+forClause = do string "for"; many1 space; i <- ident; string "in"; many1 space; e <- expr; return (CCFor i e)
 
 ifClause :: Parser CClause
-ifClause = do string "if"; requiredSpaces; e <- expr; spaces; return (CCIf e)
-
-requiredSpaces :: Parser ()
-requiredSpaces = do lookAhead (satisfy isSpace); spaces; return ()
+ifClause = do string "if"; many1 space; e <- expr; spaces; return (CCIf e)
 
 clausez :: Parser [CClause]
 clausez = lexeme $ try (do lookAhead (char ']'); return [])

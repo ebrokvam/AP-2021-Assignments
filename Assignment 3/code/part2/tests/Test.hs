@@ -79,6 +79,9 @@ tests = testGroup "Parser tests" [
       testCase "not1" $
         parseString "not1" @?=
           Right [SExp (Var "not1")],
+      testCase "isif" $
+        parseString "isif" @?=
+          Right [SExp (Var "isif")],
       testCase "false1" $
         parseString "false1" @?=
           Right [SExp (Var "false1")],
