@@ -20,7 +20,7 @@ newtype Comp a = Comp {runComp :: Env -> (Either RunError a, [String]) }
 instance Monad Comp where
   return a = Comp $ \_r -> (Right a, [])
   m >>= f = Comp $ \r ->
-    case runComp m r of
+    case runComp m r of 
       (Left re, s') -> (Left re, s')
       (Right a, s') ->
         case runComp (f a) r of
@@ -148,6 +148,22 @@ eval (List en) =
   do
   res <- mapM eval en
   return (ListVal res)
+eval (Compr en (c:cs)) =
+  case c of 
+    CCFor x e1 -> do
+      e2 <- eval e1
+      case e2 of 
+        ListVal lst -> do
+          vals <- mapM (\v -> withBinding x v (eval (Compr en cs))) lst
+          return $ ListVal (concatMap (\(ListVal val) -> val) vals)
+        _ -> abort $ EBadArg "invalid argument: CCFor expected list"
+    CCIf e1 -> do
+      e2 <- eval e1
+      if truthy e2 then eval (Compr en cs) else return $ ListVal []
+eval (Compr en []) =
+  do 
+  e1 <- eval en
+  return $ ListVal [e1]
 
 
 -- WHAT WE TRIED TO DO FOR COMPR
