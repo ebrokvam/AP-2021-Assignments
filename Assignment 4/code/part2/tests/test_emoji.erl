@@ -17,6 +17,9 @@ testsuite() ->
          test_start_server_wrong_input_binary(),
          test_start_server_small(),
          test_start_server_medium(),
+        
+         test_stop_server(),
+        %  test_stop_server_then_lookup(),
 
          test_new_shortcode_unique(),
          test_new_shortcode_non_unique(),
@@ -28,17 +31,46 @@ testsuite() ->
          test_lookup_existing(),
          test_lookup_non_existing(),
          test_lookup_alias(),
-         test_lookup_from_list_of_alias(),
+         test_lookup_from_list_of_aliases(),
          test_lookup_alias_of_alias(),
 
-         test_delete_existing(),
-         test_delete_non_existing(),
+         test_delete_shortcode(),
          test_delete_alias(),
+         test_delete_non_existing(),
 
-         test_stop_server()
+         test_analytics(),
+         test_analytics_alias(),
+         test_analytics_multiple(),
+         test_analytics_non_unique_label(),
+         test_analytics_non_existing_short(),
+         test_analytics_broken_fun(),
+         test_analytics_forever_fun(),
+
+         test_get_analytics_empty(),
+         test_get_analytics_init(),
+         test_get_analytics_multiple_funs_init(),
+         test_get_analytics_alias(),
+         test_get_analytics_after_lookups(),
+         test_get_analytics_multiple_funs_after_lookups(),
+         test_get_analytics_non_existing_short(),
+
+         test_remove_analytics_shortcode(),
+         test_remove_analytics_alias(),
+         test_remove_analytics_one_out_of_many(),
+         test_remove_analytics_non_existing_label(),
+         test_remove_analytics_non_existing_shortcode()
        ]
       }
     ].
+
+% analytics functions from example
+hit(_, N) -> N+1.
+accessed(SC, TS) ->
+  Now = calendar:local_time(),
+  [{SC,Now} | TS].
+broken() -> throw("I don't like you").
+forever() -> [] ++ forever().
+
 
 test_start_server() ->
     {"We can call start/1 and it does not crash",
@@ -89,6 +121,23 @@ test_start_server_medium() ->
      fun () ->
        ?assertMatch({ok, _}, emoji:start(someemoji:medium()))
      end }.
+
+test_stop_server() ->
+    {"We stop a server, check it returns ok",
+     fun () ->
+       {ok, S} = emoji:start([]),
+       ?assertEqual(ok, emoji:stop([S]))
+     end }.
+
+% THERE IS A WAY TO TEST THIS, IS SWEAR
+test_stop_server_then_lookup() -> 
+    {"We stop a server, then try to lookup",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:stop(S),
+       ?assert(ok, emoji:lookup(S, "smiley"))
+     end }.
+%?assertExit({noproc, _}, 
 
 test_new_shortcode_unique() ->
     {"Register new unique shortcode",
@@ -152,7 +201,7 @@ test_lookup_alias() ->
      end }.
 
 test_lookup_from_list_of_aliases() ->
-    {"Register alias and then look it up",
+    {"Register alias for a shortcode that has multiple aliases and then look it up",
      fun () ->
        {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
        ok = emoji:alias(S, "smiley", "happy"),
@@ -170,18 +219,10 @@ test_lookup_alias_of_alias() ->
        ?assertEqual({ok, <<240,159,152,131>>}, emoji:lookup(S, "glad"))
      end }.
 
-test_delete_existing() ->
+test_delete_shortcode() ->
     {"Delete an existing shortcode and then lookup, no_emoji",
      fun () ->
        {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
-       emoji:delete(S, "smiley"),
-       ?assertEqual(no_emoji, emoji:lookup(S, "smiley"))
-     end }.
-
-test_delete_non_existing() ->
-    {"Delete a non-existing shortcode, no error, then lookup, no_emoji",
-     fun () ->
-       {ok, S} = emoji:start([]),
        emoji:delete(S, "smiley"),
        ?assertEqual(no_emoji, emoji:lookup(S, "smiley"))
      end }.
@@ -195,22 +236,176 @@ test_delete_alias() ->
        ?assertEqual(no_emoji, emoji:lookup(S, "happy"))
      end }.
 
-test_stop_server() ->
-    {"We stop a server, check it returns ok",
+test_delete_non_existing() ->
+    {"Delete a non-existing shortcode/alias, no error, then lookup, no_emoji",
      fun () ->
        {ok, S} = emoji:start([]),
-       ?assertEqual(ok, emoji:stop([S]))
+       emoji:delete(S, "smiley"),
+       ?assertEqual(no_emoji, emoji:lookup(S, "smiley"))
      end }.
 
-%% THERE IS A WAY TO TEST THIS, IS SWEAR
-% test_stop_server_then_lookup() -> 
-%     {"We stop a server, then try to lookup",
-%      fun () ->
-%        {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
-%        ok = emoji:stop(S),
-%        ?assert(ok, emoji:lookup(S, "smiley"))
-%      end }.
+test_analytics() ->
+    {"Create an analytics",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ?assertEqual(ok, emoji:analytics(S, "smiley", hit/2, "Counter", 0))
+     end }.
 
-%% alias of alias ??
+test_analytics_alias() ->
+    {"Create an analytics for an alias",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:alias(S, "smiley", "happy"),
+       ?assertEqual(ok, emoji:analytics(S, "happy", hit/2, "Counter", 0))
+     end }.
+
+test_analytics_multiple() ->
+    {"Create multiple analytics for a short",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:alias(S, "smiley", "happy"),
+       ?assertEqual(ok, emoji:analytics(S, "happy", hit/2, "Counter", 0)),
+       ?assertEqual(ok, emoji:analytics(S, "smiley", accessed/2, "Accessed", []))
+     end }.
+
+test_analytics_non_unique_label() ->
+    {"Create analytics with a non-unique label, error",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:alias(S, "smiley", "happy"),
+       ok = emoji:analytics(S, "happy", hit/2, "Counter", 0),
+       ?assertMatch({error, _}, emoji:analytics(S, "smiley", accessed/2, "Counter", []))
+     end }.
+
+test_analytics_non_existing_short() ->
+    {"Create analytics for a short that does not exist, error",
+     fun () ->
+       {ok, S} = emoji:start([]),
+       ?assertMatch({error, _}, emoji:analytics(S, "smiley", accessed/2, "Accessed", []))
+     end }.
+
+test_analytics_broken_fun() ->
+    {"Create analytics with a function that throws an error, then lookup",
+     fun () ->
+       {ok, S} = emoji:start([]),
+       ok = emoji:analytics(S, "smiley", broken/0, "Broken", 0),
+       ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
+     end }.
+
+test_analytics_forever_fun() ->
+    {"Create analytics with a function that loops forever, then lookup",
+     fun () ->
+       {ok, S} = emoji:start([]),
+       ok = emoji:analytics(S, "smiley", forever/0, "Forever", []),
+       ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
+     end }.
+
+test_get_analytics_empty() ->
+    {"Get analyitics for shortcode with no analytics",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ?assertEqual({ok, []}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_get_analytics_init() ->
+    {"Get initial state for analyitics function",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       ?assertEqual({ok, [{"Counter", 0}]}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_get_analytics_multiple_funs_init() ->
+    {"Get initial state for multiple analyitics function",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       ok = emoji:analytics(S, "smiley", accessed/2, "Accessed", []),
+       ?assertMatch({ok, [{"Counter", 0}, {"Accessed", _}]}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_get_analytics_alias() ->
+    {"Create analytics, set alias, then get analytics of alias",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       ok = emoji:alias(S, "smiley", "happy"),
+       ?assertEqual({ok, [{"Counter", 0}]}, emoji:get_analytics(S, "happy"))
+     end }.
+
+test_get_analytics_after_lookups() ->
+    {"Get analyitics after three lookups",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       {ok, _} = emoji:lookup(S, "smiley"),
+       {ok, _} = emoji:lookup(S, "smiley"),
+       {ok, _} = emoji:lookup(S, "smiley"),
+       ?assertEqual({ok, [{"Counter", 3}]}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_get_analytics_multiple_funs_after_lookups() ->
+    {"Get multiple analytics after three lookups",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       {ok, _} = emoji:lookup(S, "smiley"),
+       {ok, _} = emoji:lookup(S, "smiley"),
+       {ok, _} = emoji:lookup(S, "smiley"),
+       ?assertMatch({ok, [{"Counter", 3}, {"Accessed", _}]}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_get_analytics_non_existing_short() ->
+    {"Get analytics for a non-existing short",
+     fun () ->
+       {ok, S} = emoji:start([]),
+       ?assertMatch({error, _}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_remove_analytics_shortcode() ->
+    {"Remove analytics from a shortcode and then get, empty list",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       emoji:remove_analytics(S, "smiley", "Counter"),
+       ?assertEqual({ok, []}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_remove_analytics_alias() ->
+    {"Add analytics for shortcode, add alias, remove analytics from alias and then get, empty list",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       ok = emoji:alias(S, "smiley", "happy"),
+       emoji:remove_analytics(S, "happy", "Counter"),
+       ?assertEqual({ok, []}, emoji:get_analytics(S, "happy"))
+     end }.
+
+test_remove_analytics_one_out_of_many() ->
+  {"Add two analytics for shortcode, remove one, and then get, shows state of other analytics",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       ok = emoji:analytics(S, "smiley", hit/2, "Counter", 0),
+       ok = emoji:analytics(S, "smiley", accessed/2, "Accessed", []),
+       emoji:remove_analytics(S, "smiley", "Accessed"),
+       ?assertEqual({ok, []}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_remove_analytics_non_existing_label() ->
+    {"Remove analytics from a non-existing label, no error, then get, empty list",
+     fun () ->
+       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+       emoji:remove_analytics(S, "smiley", "Counter"),
+       ?assertEqual({ok, []}, emoji:get_analytics(S, "smiley"))
+     end }.
+
+test_remove_analytics_non_existing_shortcode() ->
+    {"Remove analytics from a non-existing shortcode/alias, no error, then get, no_emoji",
+     fun () ->
+       {ok, S} = emoji:start([]),
+       emoji:remove_analytics(S, "smiley", "Counter"),
+       ?assertEqual(no_emoji, emoji:lookup(S, "smiley"))
+     end }.
+
 %% do some tests with multiple servers
 %% test robustness somehow
