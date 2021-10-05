@@ -24,6 +24,7 @@ testsuite() ->
 
          test_new_shortcode_unique(),
          test_new_shortcode_non_unique(),
+         test_new_shortcode_already_alias(),
 
          test_alias(),
          test_alias_non_existing_shortcode(),
@@ -172,6 +173,15 @@ test_new_shortcode_non_unique() ->
     fun () ->
       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
       ?assertMatch({error, _}, emoji:new_shortcode(S, "smiley",
+                                            <<240,159,152,131>>))
+    end }.
+
+test_new_shortcode_already_alias() ->
+  {"Register new shortcode that is already an alias, error",
+    fun () ->
+      {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+      ok = emoji:alias(S, "smiley", "happy"),
+      ?assertMatch({error, _}, emoji:new_shortcode(S, "happy",
                                             <<240,159,152,131>>))
     end }.
 
@@ -493,7 +503,3 @@ test_medium_remove_analytics() ->
       emoji:remove_analytics(S, "pensive face", "Counter"),
       ?assertMatch({ok, []}, emoji:get_analytics(S, "pensive face"))
     end }.
-
-
-%% TODO:
-%% test robustness somehow

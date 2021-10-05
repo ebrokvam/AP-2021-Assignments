@@ -41,7 +41,7 @@ loop(State) ->
   receive
 
     {From, {new, Short, Emo}} ->
-      case maps:find(Short, State) of
+      case get_emoji(Short, State) of
         {ok, _} -> 
           From ! {self(), {error, "shortcode already exists"}},
           loop(State);
@@ -52,41 +52,19 @@ loop(State) ->
       end;
 
     {From, {alias, Short1, Short2}} ->
-
-      case maps:find(Short2, State) of
-        % Short2 already a shortcode
-        {ok, _} -> 
-          From ! {self(), {error, "alias already exists as a shortcode"}},
+      case get_emoji(Short2, State) of
+        {ok, _} ->
+          From ! {self(), {error, "alias already exists"}},
           loop(State);
-        % Short2 not a shortcode
-        _ ->
-          case lookup_alias(Short2, maps:to_list(State)) of
-            % Short2 already an alias
-            {ok, _} ->
-              From ! {self(), {error, "alias already exists for another shortcode"}},
-              loop(State);
-            % Short2 not an alias
+        no_emoji ->
+          case get_emoji(Short1, State) of
+            {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
+              NewState = maps:put(OrigShort, {Emo, Aliases ++ [Short2], Analytics}, State),
+              From ! {self(), ok},
+              loop(NewState);
             no_emoji ->
-              case maps:find(Short1, State) of
-                % Short1 a shortcode, create alias for shortcode
-                {ok, {Emo, Aliases, Analytics}} ->
-                  NewState = maps:put(Short1, {Emo, Aliases ++ [Short2], Analytics}, State),
-                  From ! {self(), ok},
-                  loop(NewState);
-                % Short1 not a shortcode
-                _ ->
-                  case lookup_alias(Short1, maps:to_list(State)) of
-                    % Short1 an alias, create alias for alias
-                    {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
-                      NewState = maps:put(OrigShort, {Emo, Aliases ++ [Short2], Analytics}, State),
-                      From ! {self(), ok},
-                      loop(NewState);
-                    % Short1 does not exist
-                    no_emoji ->
-                      From ! {self(), {error, "shortcode does not exist"}},
-                      loop(State)
-                  end
-              end
+              From ! {self(), {error, "shortcode does not exist"}},
+              loop(State)
           end
       end;
 
@@ -100,88 +78,53 @@ loop(State) ->
       loop(NewState);
 
     {From, {lookup, Short}} ->
-      case maps:find(Short, State) of
-        {ok, {Emo, Aliases, Analytics}} -> 
-          NewAnalytics = maps:from_list(update_analytics(Short, maps:to_list(Analytics))),
-          NewState = maps:put(Short, {Emo, Aliases, NewAnalytics}, State),
+      case get_emoji(Short, State) of
+        {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
+          NewAnalytics = maps:from_list(update_analytics(OrigShort, maps:to_list(Analytics))),
+          NewState = maps:put(OrigShort, {Emo, Aliases, NewAnalytics}, State),
           From ! {self(), {ok, Emo}},
           loop(NewState);
-        _ ->
-          case lookup_alias(Short, maps:to_list(State)) of
-            {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
-              NewAnalytics = maps:from_list(update_analytics(OrigShort, maps:to_list(Analytics))),
-              NewState = maps:put(OrigShort, {Emo, Aliases, NewAnalytics}, State),
-              From ! {self(), {ok, Emo}},
-              loop(NewState);
-            no_emoji ->
-              From ! {self(), no_emoji},
-              loop(State)
-          end
+        no_emoji ->
+          From ! {self(), no_emoji},
+          loop(State)
       end;
 
     {From, {analytics, Short, Fun, Label, Init}} ->
-       case maps:find(Short, State) of
-        {ok, {Emo, Aliases, Analytics}} -> 
+      case get_emoji(Short, State) of
+        {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
           case maps:find(Label, Analytics) of
             {ok, _} ->
               From ! {self(), {error, "label already exists for shortcode"}},
               loop(State);
             _ ->
               NewAnalytics = maps:put(Label, {Fun, Init}, Analytics),
-              NewState = maps:put(Short, {Emo, Aliases, NewAnalytics}, State),
+              NewState = maps:put(OrigShort, {Emo, Aliases, NewAnalytics}, State),
               From ! {self(), ok},
               loop(NewState)
           end;
-        _ ->
-          case lookup_alias(Short, maps:to_list(State)) of
-            {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
-              case maps:find(Label, Analytics) of
-                {ok, _} ->
-                  From ! {self(), {error, "label already exists for shortcode"}},
-                  loop(State);
-                _ ->
-                  NewAnalytics = maps:put(Label, {Fun, Init}, Analytics),
-                  NewState = maps:put(OrigShort, {Emo, Aliases, NewAnalytics}, State),
-                  From ! {self(), ok},
-                  loop(NewState)
-              end;
-            no_emoji ->
-              From ! {self(), {error, "shortcode does not exist"}},
-              loop(State)
-          end
+        no_emoji ->
+          From ! {self(), {error, "shortcode does not exist"}},
+          loop(State)
       end;
 
     {From, {get_analytics, Short}} ->
-      case maps:find(Short, State) of
-        {ok, {_, _, Analytics}} -> 
+      case get_emoji(Short, State) of
+        {ok, {_, {_, _, Analytics}}} ->
           From ! {self(), {ok, read_analytics(maps:to_list(Analytics))}},
           loop(State);
-        _ ->
-          case lookup_alias(Short, maps:to_list(State)) of
-            {ok, {_, {_, _, Analytics}}} ->
-              From ! {self(), {ok, read_analytics(maps:to_list(Analytics))}},
-              loop(State);
-            no_emoji ->
-              From ! {self(), {error, "shortcode does not exist"}},
-              loop(State)
-          end
+        no_emoji ->
+          From ! {self(), {error, "shortcode does not exist"}},
+          loop(State)
       end;
 
     {remove_analytics, Short, Label} ->
-      case maps:find(Short, State) of
-        {ok, {Emo, Aliases, Analytics}} ->
+      case get_emoji(Short, State) of
+        {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
           NewAnalytics = maps:remove(Label, Analytics),
-          NewState = maps:put(Short, {Emo, Aliases, NewAnalytics}, State),
+          NewState = maps:put(OrigShort, {Emo, Aliases, NewAnalytics}, State),
           loop(NewState);
-        _ ->
-          case lookup_alias(Short, maps:to_list(State)) of
-            {ok, {OrigShort, {Emo, Aliases, Analytics}}} ->
-              NewAnalytics = maps:remove(Label, Analytics),
-              NewState = maps:put(OrigShort, {Emo, Aliases, NewAnalytics}, State),
-              loop(NewState);
-            no_emoji -> 
-              loop(State)
-          end
+        no_emoji -> 
+          loop(State)
       end;
 
     {From, stop} ->
@@ -193,6 +136,12 @@ loop(State) ->
 init_state([]) -> [];
 init_state([{Short, Emo} | Shortcodes]) ->
   [{Short, {Emo, [], maps:new()}}] ++ init_state(Shortcodes).
+
+get_emoji(Short, State) ->
+  case maps:find(Short, State) of
+    {ok, {Emo, Aliases, Analytics}} -> {ok, {Short, {Emo, Aliases, Analytics}}};
+    _ -> lookup_alias(Short, maps:to_list(State))
+  end.
 
 lookup_alias(_, []) -> no_emoji;
 lookup_alias(Alias, [{Short, {Emo, Aliases, Analytics}} | Shortcodes]) ->
