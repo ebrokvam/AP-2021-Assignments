@@ -2,37 +2,60 @@
 
 -export([new/2, wait/1, poll/1]).
 
-new(Fun, Arg) -> start(Fun, Arg).
-wait(Aid) -> request_reply(Aid, wait).
-poll(Aid) -> request_reply(Aid, poll).
+new(Fun, Arg) ->
+  Aid = spawn(fun() -> async(incomplete) end),
+  Aid ! {start, {Fun, Arg}},
+  Aid.
 
-start(Fun, Arg) -> spawn(fun() -> loop({Fun, Arg, nothing}) end).
-
-request_reply(Pid, Request) -> 
-  Pid ! {self(), Request},
+wait(Aid) ->
+  Aid ! {self(), {wait, Aid}},
   receive
-    {Pid, Response} -> Response 
+    {Aid, {ok, Res}} -> Res;
+    {Aid, {exception, Ex}} -> throw(Ex)
   end.
 
-loop({Fun, Arg, Result}) -> 
+poll(Aid) ->
+  Aid ! {self(), poll},
   receive
-    {From, poll} ->
-      case Result of
-        nothing -> From ! {self(), nothing};
-        Res -> From ! {self(), Res}
+    {Aid, Res} -> Res
+  end.
+
+async(State) ->
+  receive
+    {start, {Fun, Arg}} ->
+      spawn(fun() -> async_fun() end) ! {self(), Fun, Arg},
+      async(State);
+
+    {result, Res} ->
+      async(Res);
+
+    {From, {wait, Aid}} ->
+      case State of
+        incomplete ->
+          self() ! {From, {wait, Aid}};
+        _ ->
+          From ! {self(), State}
       end,
-      loop({Fun, Arg, Result});
-    {From, wait} ->
-      case Result of
-        nothing ->
-          try 
-            Result = Fun(Arg),
-            From ! {self(), {ok, Result}},
-            loop({Fun, Arg, {ok, Result}})
-          catch
-            _ : Ex -> 
-              From ! {self(), {exception, Ex}},
-              loop({Fun, Arg, {exception, Ex}})
-          end
+      async(State);
+      
+    {From, poll} ->
+      case State of
+        incomplete ->
+          From ! {self(), nothing};
+        _ ->
+          From ! {self(), State}
+      end,
+      async(State)
+end.
+
+async_fun() ->
+  receive
+    {From, Fun, Arg} ->
+      try 
+        Res = Fun(Arg),
+        From ! {result, {ok, Res}}
+      catch
+        _ : Ex ->
+          From ! {result, {exception, Ex}}
       end
   end.
