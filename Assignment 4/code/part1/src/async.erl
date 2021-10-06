@@ -3,31 +3,31 @@
 -export([new/2, wait/1, poll/1]).
 
 new(Fun, Arg) ->
-  Aid = spawn(fun() -> async(incomplete) end),
+  Aid = spawn(fun() -> loop(incomplete) end),
   Aid ! {start, {Fun, Arg}},
   Aid.
 
 wait(Aid) ->
   Aid ! {self(), {wait, Aid}},
   receive
-    {Aid, {ok, Res}} -> Res;
+    {Aid, {ok, Result}} -> Result;
     {Aid, {exception, Ex}} -> throw(Ex)
   end.
 
 poll(Aid) ->
   Aid ! {self(), poll},
   receive
-    {Aid, Res} -> Res
+    {Aid, Result} -> Result
   end.
 
-async(State) ->
+loop(State) ->
   receive
     {start, {Fun, Arg}} ->
-      spawn(fun() -> async_fun() end) ! {self(), Fun, Arg},
-      async(State);
+      spawn(fun() -> do_fun() end) ! {self(), Fun, Arg},
+      loop(State);
 
-    {result, Res} ->
-      async(Res);
+    {fun_result, Result} ->
+      loop(Result);
 
     {From, {wait, Aid}} ->
       case State of
@@ -36,7 +36,7 @@ async(State) ->
         _ ->
           From ! {self(), State}
       end,
-      async(State);
+      loop(State);
       
     {From, poll} ->
       case State of
@@ -45,17 +45,17 @@ async(State) ->
         _ ->
           From ! {self(), State}
       end,
-      async(State)
+      loop(State)
 end.
 
-async_fun() ->
+do_fun() ->
   receive
     {From, Fun, Arg} ->
       try 
-        Res = Fun(Arg),
-        From ! {result, {ok, Res}}
+        Result = Fun(Arg),
+        From ! {fun_result, {ok, Result}}
       catch
         _ : Ex ->
-          From ! {result, {exception, Ex}}
+          From ! {fun_result, {exception, Ex}}
       end
   end.

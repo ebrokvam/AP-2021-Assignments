@@ -9,13 +9,13 @@
 # YOUR ANSWERS WILL NOT AFFECT YOUR ASSIGNMENT GRADE.
 #
 Assignment: 4 # do not modify
-Installation:
-Reading:
-Lectures:
-Exploration:
-Warmup:
-Development:
-Tests:
-Report:
-Other:  # if more than 1h total, please elaborate in comment
+Installation: 0m
+Reading: 30m
+Lectures: 0m
+Exploration: 3h
+Warmup: 2h
+Development: 15h
+Tests: 5h
+Report: 3h
+Other: 0m # if more than 1h total, please elaborate in comment
 # Thanks!

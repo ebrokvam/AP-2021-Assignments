@@ -150,8 +150,8 @@ handle_analytics(State, {Short, {Emo, Aliases, Analytics}}) ->
       Updated = {Emo, Aliases, NewAnalytics},
       NewState = maps:put(Short, Updated, State),
       {NewState, {ok, Emo}};
-    {'EXIT', Worker, Reason} ->
-      {State, {error, Reason}}
+    {'EXIT', Worker, _} ->
+      {State, {ok, Emo}}
   end.
 
 % Converts initial list to initial state of server
@@ -184,5 +184,10 @@ read_analytics([{Label, {_, State}} | Analytics]) ->
 % Run all the analytics for a shortcode, called as worker process
 update_analytics(_, []) -> [];
 update_analytics(Short, [{Label, {Fun, State}} | Analytics]) ->
-  NewState = Fun(Short, State),
-  [{Label, {Fun, NewState}}] ++ update_analytics(Short, Analytics).
+  try Fun(Short, State) of
+    NewState ->
+      [{Label, {Fun, NewState}}] ++ update_analytics(Short, Analytics)
+  catch
+    Ex ->
+      exit(Ex)
+  end.
