@@ -44,11 +44,8 @@ non_blocking(Pid, Msg) ->
 loop(State) ->
   receive
 
-    % Handle worker errors
+    % Handle worker normal exits
     {'EXIT', _, normal} ->
-      loop(State);
-    {'EXIT', _, Reason} ->
-      {error, Reason},
       loop(State);
 
     {non_blocking, Request} -> 
@@ -144,7 +141,7 @@ handle_nonblock(Request, State) ->
 handle_analytics(State, {Short, {Emo, Aliases, Analytics}}) ->
   Me = self(),
   process_flag(trap_exit, true),
-  spawn_link(fun() ->
+  Worker = spawn_link(fun() ->
               NewAnalytics = maps:from_list(update_analytics(Short, maps:to_list(Analytics))),
               Me ! {Me, NewAnalytics}
             end),
@@ -152,7 +149,9 @@ handle_analytics(State, {Short, {Emo, Aliases, Analytics}}) ->
     {Me, NewAnalytics} ->
       Updated = {Emo, Aliases, NewAnalytics},
       NewState = maps:put(Short, Updated, State),
-      {NewState, {ok, Emo}}
+      {NewState, {ok, Emo}};
+    {'EXIT', Worker, Reason} ->
+      {State, {error, Reason}}
   end.
 
 % Converts initial list to initial state of server
