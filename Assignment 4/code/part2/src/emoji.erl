@@ -8,7 +8,7 @@
 -type emoji() :: binary().
 -type analytic_fun(State) :: fun((shortcode(), State) -> State).
 
-start(Initial) -> % TODO: separation of concerns here?
+start(Initial) ->
   case length(Initial) == sets:size(sets:from_list(proplists:get_keys(Initial))) of
     true -> {ok, spawn(fun() -> loop(maps:from_list(init_state(Initial))) end)};
     false -> {error, "shortcodes must be unique"}
@@ -44,6 +44,7 @@ non_blocking(Pid, Msg) ->
 loop(State) ->
   receive
 
+    % Handle worker errors
     {'EXIT', _, normal} ->
       loop(State);
     {'EXIT', _, Reason} ->
@@ -54,7 +55,7 @@ loop(State) ->
       NewState = handle_nonblock(Request, State),
       loop(NewState);
     {From, Ref, stop} ->
-      From ! {Ref, ok}; % or error reason??
+      From ! {Ref, ok};
     {From, Ref, Request} -> 
       {NewState, Res} = handle_call(Request, State),
       From ! {Ref, Res}, 
@@ -139,12 +140,13 @@ handle_nonblock(Request, State) ->
       end
   end.
 
+% Updates analytics as a worker process
 handle_analytics(State, {Short, {Emo, Aliases, Analytics}}) ->
   Me = self(),
   process_flag(trap_exit, true),
-  Worker = spawn_link(fun() ->
-              UpdatedAnalytics = maps:from_list(update_analytics(Short, maps:to_list(Analytics))),
-              Me ! {Me, UpdatedAnalytics}
+  spawn_link(fun() ->
+              NewAnalytics = maps:from_list(update_analytics(Short, maps:to_list(Analytics))),
+              Me ! {Me, NewAnalytics}
             end),
   receive
     {Me, NewAnalytics} ->
@@ -153,21 +155,21 @@ handle_analytics(State, {Short, {Emo, Aliases, Analytics}}) ->
       {NewState, {ok, Emo}}
   end.
 
+% Converts initial list to initial state of server
 init_state([]) -> [];
 init_state([{Short, Emo} | Shortcodes]) ->
   [{Short, {Emo, [], maps:new()}}] ++ init_state(Shortcodes).
 
+% Gets the emoji for a given short/alias
 get_emoji(Short, State) ->
-  % throw(maps:to_list(State)),
-  % throw(State)
   case maps:find(Short, State) of
     {ok, {Emo, Aliases, Analytics}} ->
       {ok, {Short, {Emo, Aliases, Analytics}}};
     _ ->
-      % throw({Short, maps:to_list(State)}),
       lookup_alias(Short, maps:to_list(State))
   end.
 
+% Finds short in aliases
 lookup_alias(_, []) -> no_emoji;
 lookup_alias(Alias, [{Short, {Emo, Aliases, Analytics}} | Shortcodes]) ->
   case lists:member(Alias, Aliases) of
@@ -175,10 +177,12 @@ lookup_alias(Alias, [{Short, {Emo, Aliases, Analytics}} | Shortcodes]) ->
     false -> lookup_alias(Alias, Shortcodes)
   end.
 
+% Converts analytics to the expected return list
 read_analytics([]) -> [];
 read_analytics([{Label, {_, State}} | Analytics]) ->
   [{Label, State}] ++ read_analytics(Analytics).
 
+% Run all the analytics for a shortcode, called as worker process
 update_analytics(_, []) -> [];
 update_analytics(Short, [{Label, {Fun, State}} | Analytics]) ->
   NewState = Fun(Short, State),
