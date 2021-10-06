@@ -13,14 +13,11 @@ testsuite() ->
          test_start_server_one_shortcode(),
          test_start_server_not_unique_shortcode(),
          test_start_server_not_unique_binary(),
-         test_start_server_wrong_input_shortcode(),
-         test_start_server_wrong_input_binary(),
          test_start_server_small(),
          test_start_server_medium(),
         
          test_stop_server(),
          test_stop_server_multiple(),
-        %  test_stop_server_then_lookup(),
 
          test_new_shortcode_unique(),
          test_new_shortcode_non_unique(),
@@ -45,8 +42,6 @@ testsuite() ->
          test_analytics_multiple(),
          test_analytics_non_unique_label(),
          test_analytics_non_existing_short(),
-        %  test_analytics_broken_fun(),
-        %  test_analytics_forever_fun(),
 
          test_get_analytics_empty(),
          test_get_analytics_init(),
@@ -63,12 +58,17 @@ testsuite() ->
          test_remove_analytics_non_existing_label(),
          test_remove_analytics_non_existing_shortcode(),
 
+        % load (efficiency) tests
          test_medium_new(),
          test_medium_lookup(),
          test_medium_delete(),
          test_medium_alias(),
          test_medium_get_analytics(),
-         test_medium_remove_analytics()
+         test_medium_remove_analytics(),
+
+        % robustness tests
+         test_analytics_broken_fun(),
+         test_analytics_forever_fun()
        ]
       }
     ].
@@ -78,8 +78,8 @@ hit(_, N) -> N+1.
 accessed(SC, TS) ->
   Now = calendar:local_time(),
   [{SC,Now} | TS].
-broken() -> throw("I don't like you").
-forever() -> [] ++ forever().
+broken(_, _) -> throw("I don't like you").
+forever(SC, State) -> State ++ forever(SC, State).
 
 
 test_start_server() ->
@@ -106,18 +106,6 @@ test_start_server_not_unique_binary() ->
     fun () ->
       ?assertMatch({ok, _}, emoji:start([{"smiley", <<240,159,152,131>>}, 
                                           {"facepalm", <<240,159,152,131>>}]))
-    end }.
-
-test_start_server_wrong_input_shortcode() ->
-  {"We can call start/1 with an integer as the shortcode and it produces an error",
-    fun () ->
-      ?assertMatch({error, _}, emoji:start([{1, <<240,159,152,131>>}]))
-    end }.
-
-test_start_server_wrong_input_binary() ->
-  {"We can call start/1 with an atom as the binary and it produces an error",
-    fun () ->
-      ?assertMatch({error, _}, emoji:start([{"facepalm", facepalm}]))
     end }.
 
 test_start_server_small() ->
@@ -149,16 +137,6 @@ test_stop_server_multiple() ->
       ?assertEqual(ok, emoji:stop(S1)),
       ?assertEqual(ok, emoji:stop(S2))
     end }.
-
-% THERE IS A WAY TO TEST THIS, IS SWEAR
-test_stop_server_then_lookup() -> 
-  {"We stop a server, then try to lookup",
-    fun () ->
-      {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
-      ok = emoji:stop(S),
-      ?assert(ok, emoji:lookup(S, "smiley"))
-    end }.
-%?assertExit({noproc, _}, 
 
 test_new_shortcode_unique() ->
   {"Register new unique shortcode",
@@ -312,22 +290,6 @@ test_analytics_non_existing_short() ->
     fun () ->
       {ok, S} = emoji:start([]),
       ?assertMatch({error, _}, emoji:analytics(S, "smiley", fun accessed/2, "Accessed", []))
-    end }.
-
-test_analytics_broken_fun() ->
-  {"Create analytics with a function that throws an error, then lookup",
-    fun () ->
-      {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
-      ok = emoji:analytics(S, "smiley", fun broken/0, "Broken", 0),
-      ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
-    end }.
-
-test_analytics_forever_fun() ->
-  {"Create analytics with a function that loops forever, then lookup",
-    fun () ->
-      {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
-      ok = emoji:analytics(S, "smiley", fun forever/0, "Forever", []),
-      ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
     end }.
 
 test_get_analytics_empty() ->
@@ -502,4 +464,20 @@ test_medium_remove_analytics() ->
       {ok, _} = emoji:lookup(S, "pensive face"),
       emoji:remove_analytics(S, "pensive face", "Counter"),
       ?assertMatch({ok, []}, emoji:get_analytics(S, "pensive face"))
+    end }.
+
+test_analytics_broken_fun() ->
+  {"Create analytics with a function that throws an error, then lookup",
+    fun () ->
+      {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+      ok = emoji:analytics(S, "smiley", fun broken/2, "Broken", 0),
+      ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
+    end }.
+
+test_analytics_forever_fun() ->
+  {"Create analytics with a function that loops forever, then lookup",
+    fun () ->
+      {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
+      ok = emoji:analytics(S, "smiley", fun forever/2, "Forever", []),
+      ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
     end }.
