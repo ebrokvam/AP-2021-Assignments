@@ -471,7 +471,7 @@ test_analytics_broken_fun() ->
     fun () ->
       {ok, S} = emoji:start([{"smiley", <<240,159,152,131>>}]),
       ok = emoji:analytics(S, "smiley", fun broken/2, "Broken", 0),
-      ?assertMatch({error, _}, emoji:lookup(S, "smiley"))
+      ?assertMatch({ok, _}, emoji:lookup(S, "smiley"))
     end }.
 
 test_analytics_forever_fun() ->
