@@ -11,7 +11,7 @@ instance Arbitrary Expr where
    arbitrary = expr
    shrink (Const n)     = map Const $ shrink n
    shrink (Oper op x y) = [x, y] ++ [Oper op x' y' | (x', y') <- shrink (x, y)]
-   -- shrink (Var v) E.env       = map Var $ shrink v
+   -- shrink (Var v) E.env = map Var $ shrink v
    -- shrink (Let v e body) E.env
 
 -- use this to find the bug in simplifier 
@@ -19,7 +19,9 @@ prop_eval_simplify :: Expr -> Property
 prop_eval_simplify x = E.simplify(x) === E.simplify(x)
 
 expr = sized exprN 
-exprN 0 _ = fmap Const arbitrary
-exprN n op = oneof [fmap Const arbitrary, 
-                    Oper op <$> subexpr <*> subexpr]
-  where subexpr = exprN (n `div` 2) op
+exprN 0 = fmap Const arbitrary
+exprN n = oneof [ fmap Const arbitrary, 
+                  Oper Plus <$> subexpr <*> subexpr,
+                  Oper Minus <$> subexpr <*> subexpr,
+                  Oper Times <$> subexpr <*> subexpr]
+  where subexpr = exprN (n `div` 2)
