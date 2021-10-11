@@ -9,10 +9,9 @@ import qualified ExprEval as E
 -- a generator for arithmetic expressions
 instance Arbitrary Expr where
    arbitrary = expr
-   shrink (Const n)     = map Const $ shrink n
+   shrink (Const n) = map Const $ shrink n
    shrink (Oper op x y) = [x, y] ++ [Oper op x' y' | (x', y') <- shrink (x, y)]
-   -- shrink (Var v) E.env = map Var $ shrink v
-   -- shrink (Let v e body) E.env
+   shrink (Let v e body) = 
 
 -- use this to find the bug in simplifier 
 prop_eval_simplify :: Expr -> Property
