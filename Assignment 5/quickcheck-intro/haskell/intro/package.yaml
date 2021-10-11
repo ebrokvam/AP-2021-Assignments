@@ -1,0 +1,15 @@
+name: intro
+
+# The packages we depend on
+dependencies:
+- base             # For build-in functions like `length`
+- tasty            # The test framework tasty
+- tasty-hunit      # unit-testing with tasty
+- tasty-quickcheck # property-testing with tasty
+- QuickCheck
+
+
+library:
+  source-dirs: .
+  exposed-modules:
+    - Intro

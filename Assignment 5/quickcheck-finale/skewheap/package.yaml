@@ -1,0 +1,14 @@
+name: skewheap
+
+# The packages we depend on
+dependencies:
+- base             # For build-in functions like `length`
+- QuickCheck
+
+
+
+library:
+  source-dirs: .
+  exposed-modules:
+    - SkewHeap
+    - QCSkewHeap

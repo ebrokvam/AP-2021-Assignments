@@ -1,0 +1,24 @@
+name: morse
+
+# The packages we depend on
+dependencies:
+- base             # For build-in functions like `length`
+- tasty            # The test framework tasty
+- tasty-hunit      # unit-testing with tasty
+- tasty-quickcheck # property-testing with tasty
+- random
+- QuickCheck
+
+
+library:
+  source-dirs: src
+  exposed-modules:
+    - Morse
+
+# The test-suite
+tests:
+  morse-test-suite:
+    main: Test.hs
+    source-dirs:
+      - tests
+      - src
