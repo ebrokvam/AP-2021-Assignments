@@ -11,7 +11,7 @@ instance Arbitrary Expr where
    arbitrary = expr
    shrink (Const n) = map Const $ shrink n
    shrink (Oper op x y) = [x, y] ++ [Oper op x' y' | (x', y') <- shrink (x, y)]
-   shrink (Let v e body) = 
+   -- shrink (Let v e body) = 
 
 -- use this to find the bug in simplifier 
 prop_eval_simplify :: Expr -> Property

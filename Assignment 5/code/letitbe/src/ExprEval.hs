@@ -29,7 +29,11 @@ simplify e =
   case e of
     Oper Plus (Const c1) (Const c2) -> Const(c1+c2)
     Oper Minus (Const c1) (Const c2) -> Const(c1-c2) -- changed from (+) to (-)
-    Oper Times (Const c1) (Const c2) -> Const(c1*c2)
+    Oper Times (Const 1) (Const c2) -> Const c2
+    Oper Times (Const c1) (Const 1) -> Const c1
+    Oper Times (Const 0) _ -> Const 0
+    Oper Times _ (Const 0) -> Const 0
+    -- Oper Times (Const c1) (Const c2) -> Const(c1*c2)
     Oper op e1 e2 -> Oper op (simplify e1) (simplify e2)
     Let v e body ->
       Let v (simplify e) (simplify body)
