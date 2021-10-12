@@ -24,16 +24,28 @@ eval (Let v e body) env = do
 evalTop :: Expr -> Either String Int
 evalTop e = eval e M.empty
 
+{-
+Extend the simplifier so that it can perform some more transformations. 
+You must implement the following transformations:
+
+(0) Expressions containing operation with the constants 0 and 1 can 
+    often be simplified. For instance, an expression e multiplied 
+    with 0 can be simplified to 0.
+
+(1) If a let bound variable is not used in the body of a let-expression, 
+    then the binding can be eliminated.
+-}
+
 simplify :: Expr -> Expr
 simplify e =
   case e of
     Oper Plus (Const c1) (Const c2) -> Const(c1+c2)
-    Oper Minus (Const c1) (Const c2) -> Const(c1-c2) -- changed from (+) to (-)
-    Oper Times (Const 1) (Const c2) -> Const c2
-    Oper Times (Const c1) (Const 1) -> Const c1
-    Oper Times (Const 0) _ -> Const 0
-    Oper Times _ (Const 0) -> Const 0
-    -- Oper Times (Const c1) (Const c2) -> Const(c1*c2)
+    Oper Minus (Const c1) (Const c2) -> Const(c1-c2) -- changed from (+) to (-).. didn't need quickcheck for that though
+    Oper Times (Const 1) (Const c2) -> Const c2      -- don't really simplify as i thought
+    Oper Times (Const c1) (Const 1) -> Const c1      -- ditto
+    Oper Times (Const 0) _ -> Const 0                -- simplyfies it :) 
+    Oper Times _ (Const 0) -> Const 0                -- ditto 
+    Oper Times (Const c1) (Const c2) -> Const(c1*c2)
     Oper op e1 e2 -> Oper op (simplify e1) (simplify e2)
     Let v e body ->
       Let v (simplify e) (simplify body)
