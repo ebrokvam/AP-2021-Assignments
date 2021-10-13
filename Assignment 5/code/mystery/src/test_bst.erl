@@ -20,10 +20,15 @@ bst(Key, Value) ->
 
 bst_sym(Key, Value) ->
   ?LAZY(
-    oneof([{call, lists, new, [{Key, Value}]},
+    eqc_gen:elements([{call, eqc_gen, list, [{Key, Value}]},
       ?LET(KVS, bst_sym(Key, Value),
-        {call,lists, store, [{Key, Value}| KVS]}
-        )])).
+        lists:foldl(fun({K,V}, T) -> insert(K, V, T) end,
+        empty(),
+        KVS))])).
+        % {call, lists, foldl, 
+        %   [fun({K,V}, T) -> insert(K, V, T) end, 
+        %   empty(), 
+        %   KVS]})])).
 
 
 % example key and value generators
@@ -38,8 +43,11 @@ int_value() -> eqc_gen:int().
 
 % all generated bst are valid
 prop_arbitrary_valid() ->
-  ?FORALL(T, bst(atom_key(), int_value()),
-          valid(T)).
+  ?FORALL(T, bst_sym(atom_key(), int_value()),
+    begin
+      Tree = eval(T),
+      valid(T)
+    end).
 
 % if we insert into a valid tree it stays valid
 %insert (K, V, leaf) -> {branch, leaf, K, V, leaf};
@@ -129,13 +137,12 @@ prop_union_post() ->
     {bst(atom_key(), int_value()), bst(atom_key(), int_value()), atom_key()},
     eqc:equals(
       find(K, union(T1, T2)), 
-      union_find()
-      % (find(K, T1) (find(K, T2) orelse nothing)))).
+      (find(K, T1) orelse (find(K, T2) orelse nothing)) )).
 
 
--spec union_find(Key1, [{Key1, Value1}], Key2, [{Key2, Value2}]) -> [{Key, Value}].
-union_find(Key1, KVS1, Key2, KVS2) -> 
-  find(K1, KVS1) orelse find(K2, KVS2).
+% -spec union_find(Key1, [{Key1, Value1}], Key2, [{Key2, Value2}]) -> [{Key, Value}].
+% union_find(Key1, KVS1, Key2, KVS2) -> 
+%   find(K1, KVS1) orelse find(K2, KVS2).
   % case find(Key1, KVS1) of 
   %   {found, Value1} -> [{Key1, Value1}];
   %   nothing -> 
@@ -234,14 +241,14 @@ prop_delete_model() ->
       model(delete(K, T)),
       delete_key(K, model(T)))).
 
-prop_union_model() -> true.
+prop_union_model() -> 
   % ∀ t t'. model(union t t') === model(L.unionBy(model(t),model(t')))
-  % ?FORALL(
-  %   {T1, T2},
-  %   {bst(atom_key(), int_value()), bst(atom_key(), int_value())},
-  %   eqc:equals(
-  %     model(union(T1, T2)),
-  %     model(union_by(model(T1),model(T2))))).
+  ?FORALL(
+    {T1, T2},
+    {bst(atom_key(), int_value()), bst(atom_key(), int_value())},
+    eqc:equals(
+      model(union(T1, T2)),
+      model(union_by(model(T1),model(T2))))).
 
 
 
@@ -262,6 +269,10 @@ lookup_list(Key, KVS) ->
 
 -spec union_by([{Key1, Value1}], [{Key2, Value2}]) -> [[{Key1, Value1}] | [{Key2, Value2}]].
 union_by(KVS1, KVS2) -> [ [T1 | T2] || T1 <- KVS1, T2 <- KVS2, lists:nth(0, KVS1) =:= lists:nth(0, KVS2) ].
-
+ % List<Entry<Integer, Integer>> bst2Model = bst2.toList();
+ %    for (Entry<Integer, Integer> entry : bst1.toList()) {
+ %        bst2Model = removeKey(bst2Model, entry.getKey());
+ %    }
+    
 %% -- Test all properties in the module: eqc:module(test_bst)
 %%  c('src/test_bst.erl'), c('src/bst.erl'), eqc:module(test_bst).
