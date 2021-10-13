@@ -20,7 +20,7 @@ bst(Key, Value) ->
 
 bst_sym(Key, Value) ->
   ?LAZY(
-    eqc_gen:elements([{call, eqc_gen, list, [{Key, Value}]},
+    eqc_gen:oneof([{call, eqc_gen, list, [{Key, Value}]},
       ?LET(KVS, bst_sym(Key, Value),
         lists:foldl(fun({K,V}, T) -> insert(K, V, T) end,
         empty(),
@@ -43,11 +43,15 @@ int_value() -> eqc_gen:int().
 
 % all generated bst are valid
 prop_arbitrary_valid() ->
-  ?FORALL(T, bst_sym(atom_key(), int_value()),
-    begin
-      Tree = eval(T),
-      valid(Tree)
-    end).
+  ?FORALL(T, bst(atom_key(), int_value()),
+    valid(T)).
+
+% prop_arbitrary_valid() ->
+%   ?FORALL(T, bst_sym(atom_key(), int_value()),
+%     begin
+%       Tree = eval(T),
+%       valid(T)
+%     end).
 
 % if we insert into a valid tree it stays valid
 %insert (K, V, leaf) -> {branch, leaf, K, V, leaf};
