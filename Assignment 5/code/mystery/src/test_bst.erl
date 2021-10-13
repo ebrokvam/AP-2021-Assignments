@@ -46,7 +46,7 @@ prop_arbitrary_valid() ->
   ?FORALL(T, bst_sym(atom_key(), int_value()),
     begin
       Tree = eval(T),
-      valid(T)
+      valid(Tree)
     end).
 
 % if we insert into a valid tree it stays valid
